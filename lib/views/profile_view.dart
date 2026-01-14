@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:orator_teleprompter/core/theme.dart';
+import 'package:orator_teleprompter/views/privacy_policy_view.dart';
+import 'package:orator_teleprompter/views/terms_conditions_view.dart'; // Importado correctamente
 
 class ProfileView extends StatefulWidget {
   const ProfileView({super.key});
@@ -32,28 +34,24 @@ class _ProfileViewState extends State<ProfileView> {
     super.dispose();
   }
 
-  // --- LOGOUT LOGIC ---
+  // --- LOGOUT LOGIC (MANTENIDO) ---
   Future<void> _signOut() async {
-  try {
-    setState(() => _isLoading = true);
+    try {
+      setState(() => _isLoading = true);
+      await Supabase.instance.client.auth.signOut();
 
-    // 1. Cerramos la sesión en el servidor
-    await Supabase.instance.client.auth.signOut();
-
-    if (mounted) {
-      // 2. Usamos el rootNavigator para salir de cualquier menú anidado
-      // El nombre '/login' debe ser idéntico al de main.dart
-      Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil(
-        '/login',
-        (route) => false, // Esto borra el historial (Dashboard y Profile)
-      );
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil(
+          '/login',
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      debugPrint("Logout error: $e");
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-  } catch (e) {
-    debugPrint("Logout error: $e");
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
   }
-}
 
   Future<void> _getInitialProfile() async {
     if (_user == null) return;
@@ -71,75 +69,7 @@ class _ProfileViewState extends State<ProfileView> {
     }
   }
 
-  // --- PRIVACY POLICY ---
-  void _showPrivacyPolicy() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: graySurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        maxChildSize: 0.9,
-        minChildSize: 0.5,
-        expand: false,
-        builder: (context, scrollController) {
-          return Container(
-            padding: const EdgeInsets.all(25),
-            child: ListView(
-              controller: scrollController,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 20),
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-                const Text(
-                  'Privacy Policy',
-                  style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 20),
-                _policySection('1. Data Collection', 'We collect your email and name to manage your teleprompter scripts.'),
-                _policySection('2. Data Security', 'Your data is managed through Supabase with industry-standard encryption.'),
-                _policySection('3. Account Deletion', 'You can delete your account and all associated data permanently from this screen.'),
-                _policySection('4. Permissions', 'Storage access is only used to update your profile image.'),
-                const SizedBox(height: 30),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: redOrator),
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('CLOSE'),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _policySection(String title, String content) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(color: redOrator, fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 8),
-          Text(content, style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5)),
-        ],
-      ),
-    );
-  }
-
-  // --- LOGIC: UPLOAD & UPDATE ---
+  // --- LOGIC: UPLOAD & UPDATE (MANTENIDO) ---
   Future<void> _pickAndUploadImage() async {
     final picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
@@ -183,7 +113,7 @@ class _ProfileViewState extends State<ProfileView> {
     }
   }
 
-  // --- ACCOUNT DELETION ---
+  // --- ACCOUNT DELETION (MANTENIDO) ---
   Future<void> _deleteAccountPermanently() async {
     try {
       setState(() => _isLoading = true);
@@ -329,14 +259,32 @@ class _ProfileViewState extends State<ProfileView> {
               ),
             ),
             const SizedBox(height: 30),
+            
+            // --- SECCIÓN LEGAL ACTUALIZADA ---
             ListTile(
-              onTap: _showPrivacyPolicy,
+              onTap: () => Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (context) => const PrivacyPolicyView())
+              ),
               leading: const Icon(Icons.privacy_tip_outlined, color: Colors.white70),
               title: const Text('Privacy Policy', style: TextStyle(color: Colors.white70)),
               trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 16),
               tileColor: graySurface.withValues(alpha: 0.3),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
             ),
+            const SizedBox(height: 12),
+            ListTile(
+              onTap: () => Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (context) => const TermsConditionsView())
+              ),
+              leading: const Icon(Icons.description_outlined, color: Colors.white70),
+              title: const Text('Terms & Conditions', style: TextStyle(color: Colors.white70)),
+              trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 16),
+              tileColor: graySurface.withValues(alpha: 0.3),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            ),
+
             const SizedBox(height: 40),
             const Divider(color: Colors.white10),
             TextButton(
