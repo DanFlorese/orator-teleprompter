@@ -122,18 +122,15 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
     await _initializeCamera(_selectedCameraIndex);
   }
 
-  // --- NUEVA LÓGICA: REPETIR TOMA ---
   Future<void> _restartTake() async {
-    // 1. Detenemos grabación actual sin guardar
     try {
       await _controller!.stopVideoRecording();
     } catch (e) {
       debugPrint("Error al detener para reiniciar: $e");
     }
 
-    // 2. Limpiamos estados
     _recordingTimer?.cancel();
-    _scrollController.position.hold(() {}); // Detiene el scroll inmediatamente
+    _scrollController.position.hold(() {}); 
     
     setState(() {
       _isRecording = false;
@@ -142,13 +139,11 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
       _lastVideoPath = null;
     });
 
-    // 3. Regresamos el texto al inicio con una animación suave
     await _scrollController.animateTo(0, 
       duration: const Duration(milliseconds: 500), 
       curve: Curves.easeOut
     );
 
-    // 4. Iniciamos la cuenta regresiva de nuevo
     _startCountdown();
   }
 
@@ -240,11 +235,13 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
           if (!_isRecording && _lastVideoPath == null) _buildTopTools(),
           if (_countdownSeconds > 0) _buildCountdownOverlay(),
           
-          if (_isRecording) ...[
+          // --- SLIDERS VISIBLES SIEMPRE (Menos en pantalla de guardar) ---
+          if (_lastVideoPath == null) ...[
             _buildSlider(true), 
             _buildSlider(false), 
-            _buildVisualizerOverlay(),
           ],
+
+          if (_isRecording) _buildVisualizerOverlay(),
 
           Align(
             alignment: Alignment.bottomCenter, 
@@ -273,7 +270,7 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
       top: 50, right: 15,
       child: Column(
         children: [
-          if (_cameras.length > 1) _toolButton(Icons.flip_camera_ios, _switchCamera),
+          // Se eliminó el botón de flip de aquí para moverlo abajo
           _toolButton(Icons.close, () => Navigator.pop(context)),
         ],
       ),
@@ -291,7 +288,7 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   Widget _buildSlider(bool isFontSize) {
     return Positioned(
       left: isFontSize ? 15 : null, right: isFontSize ? null : 15,
-      top: 150, bottom: 200,
+      top: 200, bottom: 200, // Ajustado el top para no encimar con el botón cerrar
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -390,7 +387,6 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
     );
   }
 
-  // --- CONTROL BAR CON BOTÓN RESTART (MODIFICADO) ---
   Widget _buildControlBar() {
     if (!_isRecording && _lastVideoPath != null) {
       return ElevatedButton.icon(
@@ -404,24 +400,25 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
         label: const Text("SAVE VIDEO", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       );
     }
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Botón de REPETIR TOMA (Restart)
-        if (_isRecording) 
-          Opacity(
-            opacity: _isPaused ? 1.0 : 0.0,
-            child: IgnorePointer(
-              ignoring: !_isPaused,
-              child: IconButton(
-                onPressed: _restartTake,
-                icon: const Icon(Icons.replay_rounded, size: 40, color: Colors.white70),
-              ),
-            ),
-          ),
+        // BOTÓN IZQUIERDO: DINÁMICO (Flip Camera o Restart)
+        SizedBox(
+          width: 60,
+          child: _isRecording 
+            ? (_isPaused 
+                ? IconButton(onPressed: _restartTake, icon: const Icon(Icons.replay_rounded, size: 40, color: Colors.white70)) 
+                : null)
+            : (_cameras.length > 1 
+                ? IconButton(onPressed: _switchCamera, icon: const Icon(Icons.flip_camera_ios_rounded, size: 35, color: Colors.white70)) 
+                : null),
+        ),
           
         const SizedBox(width: 20),
 
+        // BOTÓN CENTRAL: PAUSA/RESUME (Solo durante grabación)
         if (_isRecording) IconButton(
           onPressed: () { 
             if(_isPaused) { 
@@ -439,6 +436,7 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
 
         const SizedBox(width: 20),
 
+        // BOTÓN DERECHO: GRABAR / STOP
         GestureDetector(
           onTap: _isRecording ? _stopRecording : (_countdownSeconds > 0 ? null : _startCountdown),
           child: Container(
@@ -457,8 +455,9 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
           ),
         ),
         
-        // Espaciador para centrar el botón de grabar perfectamente
-        if (_isRecording) const SizedBox(width: 60), 
+        // Espacio para equilibrar visualmente si no estamos grabando
+        if (!_isRecording) const SizedBox(width: 60),
+        if (_isRecording) const SizedBox(width: 20), 
       ],
     );
   }

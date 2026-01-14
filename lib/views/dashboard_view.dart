@@ -21,9 +21,11 @@ class _DashboardViewState extends State<DashboardView> {
   }
 
   void _initStream() {
+    final user = Supabase.instance.client.auth.currentUser;
     _scriptsStream = Supabase.instance.client
         .from('scripts')
         .stream(primaryKey: ['id'])
+        .eq('user_id', user?.id ?? '')
         .order('created_at', ascending: false);
   }
 
