@@ -3,7 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:orator_teleprompter/core/theme.dart';
 import 'package:orator_teleprompter/views/privacy_policy_view.dart';
-import 'package:orator_teleprompter/views/terms_conditions_view.dart'; // Importado correctamente
+import 'package:orator_teleprompter/views/terms_conditions_view.dart';
+import 'package:orator_teleprompter/services/purchase_service.dart';
 
 class ProfileView extends StatefulWidget {
   const ProfileView({super.key});
@@ -16,7 +17,7 @@ class _ProfileViewState extends State<ProfileView> {
   final _nameController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
   bool _isLoading = false;
-  bool _isPasswordVisible = false; 
+  bool _isPasswordVisible = false;
   String? _avatarUrl;
 
   final User? _user = Supabase.instance.client.auth.currentUser;
@@ -34,7 +35,7 @@ class _ProfileViewState extends State<ProfileView> {
     super.dispose();
   }
 
-  // --- LOGOUT LOGIC (MANTENIDO) ---
+  // --- LOGOUT LOGIC ---
   Future<void> _signOut() async {
     try {
       setState(() => _isLoading = true);
@@ -69,10 +70,11 @@ class _ProfileViewState extends State<ProfileView> {
     }
   }
 
-  // --- LOGIC: UPLOAD & UPDATE (MANTENIDO) ---
+  // --- LOGIC: UPLOAD & UPDATE ---
   Future<void> _pickAndUploadImage() async {
     final picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
+    final XFile? image =
+        await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
     if (image == null || _user == null) return;
 
     setState(() => _isLoading = true);
@@ -86,11 +88,15 @@ class _ProfileViewState extends State<ProfileView> {
             fileOptions: const FileOptions(upsert: true),
           );
 
-      final String publicUrl = Supabase.instance.client.storage.from('avatars').getPublicUrl(fileName);
+      final String publicUrl =
+          Supabase.instance.client.storage.from('avatars').getPublicUrl(fileName);
       setState(() => _avatarUrl = publicUrl);
       _updateProfile(newAvatarUrl: publicUrl);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload Error: $e'), backgroundColor: redOrator));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Upload Error: $e'), backgroundColor: redOrator));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -105,15 +111,21 @@ class _ProfileViewState extends State<ProfileView> {
         'avatar_url': newAvatarUrl ?? _avatarUrl,
         'updated_at': DateTime.now().toIso8601String(),
       });
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated successfully!')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile updated successfully!')));
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Update Error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Update Error: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // --- ACCOUNT DELETION (MANTENIDO) ---
+  // --- ACCOUNT DELETION ---
   Future<void> _deleteAccountPermanently() async {
     try {
       setState(() => _isLoading = true);
@@ -123,9 +135,15 @@ class _ProfileViewState extends State<ProfileView> {
       );
       await Supabase.instance.client.rpc('delete_user');
       await Supabase.instance.client.auth.signOut();
-      if (mounted) Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Error: Incorrect password"), backgroundColor: redOrator));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text("Error: Incorrect password"),
+            backgroundColor: redOrator));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -141,11 +159,14 @@ class _ProfileViewState extends State<ProfileView> {
         builder: (context, setDialogState) {
           return AlertDialog(
             backgroundColor: graySurface,
-            title: const Text('⚠️ IRREVERSIBLE ACTION', style: TextStyle(color: redOrator, fontWeight: FontWeight.bold)),
+            title: const Text('⚠️ IRREVERSIBLE ACTION',
+                style: TextStyle(color: redOrator, fontWeight: FontWeight.bold)),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('To delete your account and all data permanently, please enter your password.', style: TextStyle(color: Colors.white70)),
+                const Text(
+                    'To delete your account and all data permanently, please enter your password.',
+                    style: TextStyle(color: Colors.white70)),
                 const SizedBox(height: 20),
                 TextField(
                   controller: _passwordConfirmController,
@@ -156,17 +177,26 @@ class _ProfileViewState extends State<ProfileView> {
                     hintStyle: const TextStyle(color: Colors.white24),
                     filled: true,
                     fillColor: Colors.black26,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
                     suffixIcon: IconButton(
-                      icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off, color: Colors.white54),
-                      onPressed: () => setDialogState(() => _isPasswordVisible = !_isPasswordVisible),
+                      icon: Icon(
+                          _isPasswordVisible
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          color: Colors.white54),
+                      onPressed: () => setDialogState(
+                          () => _isPasswordVisible = !_isPasswordVisible),
                     ),
                   ),
                 ),
               ],
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL', style: TextStyle(color: Colors.white54))),
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('CANCEL',
+                      style: TextStyle(color: Colors.white54))),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: redOrator),
                 onPressed: () {
@@ -210,13 +240,18 @@ class _ProfileViewState extends State<ProfileView> {
                 child: CircleAvatar(
                   radius: 60,
                   backgroundColor: graySurface,
-                  backgroundImage: _avatarUrl != null ? NetworkImage(_avatarUrl!) : null,
-                  child: _avatarUrl == null ? const Icon(Icons.camera_alt, size: 40, color: Colors.white24) : null,
+                  backgroundImage:
+                      _avatarUrl != null ? NetworkImage(_avatarUrl!) : null,
+                  child: _avatarUrl == null
+                      ? const Icon(Icons.camera_alt,
+                          size: 40, color: Colors.white24)
+                      : null,
                 ),
               ),
             ),
             const SizedBox(height: 10),
-            const Text('Tap to change photo', style: TextStyle(color: Colors.white24, fontSize: 12)),
+            const Text('Tap to change photo',
+                style: TextStyle(color: Colors.white24, fontSize: 12)),
             const SizedBox(height: 40),
             TextField(
               controller: _nameController,
@@ -226,8 +261,12 @@ class _ProfileViewState extends State<ProfileView> {
                 labelStyle: const TextStyle(color: Colors.white70),
                 filled: true,
                 fillColor: graySurface,
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Colors.white24)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: redOrator)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: const BorderSide(color: Colors.white24)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: const BorderSide(color: redOrator)),
               ),
             ),
             const SizedBox(height: 20),
@@ -240,10 +279,82 @@ class _ProfileViewState extends State<ProfileView> {
                 labelStyle: const TextStyle(color: Colors.white30),
                 filled: true,
                 fillColor: graySurface.withValues(alpha: 0.5),
-                disabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Colors.white10)),
+                disabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: const BorderSide(color: Colors.white10)),
               ),
             ),
+            
+            // --- ACTUALIZACIÓN: BOTÓN DORADO UPGRADE (ARRIBA DE SAVE CHANGES) ---
             const SizedBox(height: 40),
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFFD700), Color(0xFFB8860B)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFFD700).withValues(alpha: 0.2),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(15),
+          onTap: () async {
+            // --- LLAMADA REAL A REVENUECAT ---
+            setState(() => _isLoading = true);
+        
+           // Ejecutamos la compra de $499 MXN
+           bool success = await PurchaseService.purchaseSubscription();
+        
+           if (!context.mounted) return; {
+          setState(() => _isLoading = false);
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('¡WELCOME TO PRO! All features unlocked.'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          } else {
+            // No mostramos error si el usuario simplemente canceló la ventana
+            debugPrint("Compra no completada o cancelada");
+          }
+        }
+      },
+      child: const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.auto_awesome, color: Colors.black, size: 22),
+            SizedBox(width: 12),
+            Text(
+              'UPGRADE TO PRO — \$499/YR',
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.w900, // Tu corrección de error anterior
+                fontSize: 15,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  ),
+),
+const SizedBox(height: 15),
+
+            // --- BOTÓN SAVE CHANGES ---
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -251,45 +362,62 @@ class _ProfileViewState extends State<ProfileView> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: redOrator,
                   padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15)),
                 ),
-                child: _isLoading 
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-                  : const Text('SAVE CHANGES', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
+                    : const Text('SAVE CHANGES',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
               ),
             ),
             const SizedBox(height: 30),
-            
-            // --- SECCIÓN LEGAL ACTUALIZADA ---
+
+            // --- SECCIÓN LEGAL ---
             ListTile(
               onTap: () => Navigator.push(
-                context, 
-                MaterialPageRoute(builder: (context) => const PrivacyPolicyView())
-              ),
-              leading: const Icon(Icons.privacy_tip_outlined, color: Colors.white70),
-              title: const Text('Privacy Policy', style: TextStyle(color: Colors.white70)),
-              trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 16),
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const PrivacyPolicyView())),
+              leading:
+                  const Icon(Icons.privacy_tip_outlined, color: Colors.white70),
+              title: const Text('Privacy Policy',
+                  style: TextStyle(color: Colors.white70)),
+              trailing: const Icon(Icons.arrow_forward_ios,
+                  color: Colors.white24, size: 16),
               tileColor: graySurface.withValues(alpha: 0.3),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15)),
             ),
             const SizedBox(height: 12),
             ListTile(
               onTap: () => Navigator.push(
-                context, 
-                MaterialPageRoute(builder: (context) => const TermsConditionsView())
-              ),
-              leading: const Icon(Icons.description_outlined, color: Colors.white70),
-              title: const Text('Terms & Conditions', style: TextStyle(color: Colors.white70)),
-              trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 16),
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const TermsConditionsView())),
+              leading:
+                  const Icon(Icons.description_outlined, color: Colors.white70),
+              title: const Text('Terms & Conditions',
+                  style: TextStyle(color: Colors.white70)),
+              trailing: const Icon(Icons.arrow_forward_ios,
+                  color: Colors.white24, size: 16),
               tileColor: graySurface.withValues(alpha: 0.3),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15)),
             ),
 
             const SizedBox(height: 40),
             const Divider(color: Colors.white10),
             TextButton(
               onPressed: _showDeleteDialog,
-              child: const Text('Delete Account Forever', style: TextStyle(color: Colors.white24, decoration: TextDecoration.underline)),
+              child: const Text('Delete Account Forever',
+                  style: TextStyle(
+                      color: Colors.white24,
+                      decoration: TextDecoration.underline)),
             ),
           ],
         ),

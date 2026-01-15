@@ -3,8 +3,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:orator_teleprompter/core/theme.dart';
 import 'package:orator_teleprompter/views/login_view.dart';
 import 'package:orator_teleprompter/views/dashboard_view.dart';
-import 'package:orator_teleprompter/views/profile_view.dart'; // Importante para la navegación
+import 'package:orator_teleprompter/views/profile_view.dart';
 import 'package:orator_teleprompter/views/reset_password_view.dart';
+// --- NUEVO: IMPORTACIÓN DEL SERVICIO DE COMPRAS ---
+import 'package:orator_teleprompter/services/purchase_service.dart';
 
 // 1. Definimos la llave global para navegar sin depender del contexto local
 final navigatorKey = GlobalKey<NavigatorState>();
@@ -12,10 +14,15 @@ final navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Inicializamos Supabase
   await Supabase.initialize(
     url: 'https://tohplfxtwylelfpanlcq.supabase.co',
     anonKey: 'sb_publishable_KZXDjJERbA2_2hBAyVLaFg_Hb_fk_7K',
   );
+
+  // --- NUEVO: INICIALIZACIÓN DE REVENUECAT ---
+  // Esto permite que la app verifique suscripciones desde el arranque
+  await PurchaseService.init();
 
   // 2. Escuchamos cambios en la autenticación (especialmente recuperación de clave)
   Supabase.instance.client.auth.onAuthStateChange.listen((data) {
@@ -48,8 +55,7 @@ class OratorApp extends StatelessWidget {
       // La pantalla inicial según la sesión
       home: session != null ? const DashboardView() : const LoginView(),
 
-      // --- ESTO ES LO QUE FALTABA ---
-      // Definimos el "mapa" de nombres de rutas
+      // Rutas de navegación
       routes: {
         '/login': (context) => const LoginView(),
         '/dashboard': (context) => const DashboardView(),
