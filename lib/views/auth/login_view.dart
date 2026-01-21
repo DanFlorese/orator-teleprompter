@@ -4,6 +4,7 @@ import 'package:orator_teleprompter/core/theme.dart';
 import 'package:orator_teleprompter/views/auth/register_view.dart';
 import 'package:orator_teleprompter/views/dashboard/dashboard_view.dart';
 import 'package:orator_teleprompter/views/auth/forgot_password_view.dart';
+import 'package:orator_teleprompter/widgets/logos/orator_logo.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -17,6 +18,13 @@ class _LoginViewState extends State<LoginView> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleLogin() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
@@ -47,7 +55,9 @@ class _LoginViewState extends State<LoginView> {
   }
 
   void _showMsg(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), backgroundColor: redOrator));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(text), backgroundColor: redOrator)
+    );
   }
 
   @override
@@ -56,21 +66,42 @@ class _LoginViewState extends State<LoginView> {
       backgroundColor: blackBackground,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 50),
+          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 30),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 50),
-              const Text('Orator', textAlign: TextAlign.center, 
-                style: TextStyle(fontSize: 60, fontWeight: FontWeight.bold, color: redOrator, letterSpacing: -2)),
-              const Text('TELEPROMPTER', textAlign: TextAlign.center, 
-                style: TextStyle(fontSize: 18, color: Colors.white, letterSpacing: 4, fontWeight: FontWeight.w300)),
+              const SizedBox(height: 40),
+              
+              // --- SECCIÓN DE MARCA ---
+              const Center(child: OratorLogo(size: 150)),
+              const SizedBox(height: 20),
+              const Text(
+                'ORATOR',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 42, 
+                  fontWeight: FontWeight.bold, 
+                  color: Colors.white, 
+                  letterSpacing: -1
+                ),
+              ),
+              const Text(
+                'TELEPROMPTER',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14, 
+                  color: Colors.white54, 
+                  letterSpacing: 4, 
+                  fontWeight: FontWeight.w300
+                ),
+              ),
+              
               const SizedBox(height: 60),
 
+              // --- FORMULARIO DE ENTRADA ---
               _buildInput(_emailController, 'Email', Icons.email_outlined),
               const SizedBox(height: 20),
 
-              // Password con Ojito
               TextField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
@@ -78,48 +109,73 @@ class _LoginViewState extends State<LoginView> {
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.lock_outline, color: redOrator),
                   suffixIcon: IconButton(
-                    icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_off : Icons.visibility, 
+                      color: Colors.grey
+                    ),
                     onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                   ),
                   hintText: 'Password',
                   hintStyle: const TextStyle(color: Colors.grey),
                   filled: true,
                   fillColor: graySurface,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15), 
+                    borderSide: BorderSide.none
+                  ),
                 ),
               ),
 
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ForgotPasswordView())),
+                  onPressed: () => Navigator.push(
+                    context, 
+                    MaterialPageRoute(builder: (context) => const ForgotPasswordView())
+                  ),
                   child: const Text('Forgot Password?', style: TextStyle(color: Colors.white54)),
                 ),
               ),
 
               const SizedBox(height: 20),
 
+              // --- BOTÓN DE ACCIÓN ---
               ElevatedButton(
                 onPressed: _isLoading ? null : _handleLogin,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 18),
                   backgroundColor: redOrator,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  elevation: 0,
                 ),
                 child: _isLoading 
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('Login', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                  ? const SizedBox(
+                      height: 20, 
+                      width: 20, 
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                    )
+                  : const Text(
+                      'Login', 
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)
+                    ),
               ),
 
               const SizedBox(height: 30),
 
+              // --- PIE DE PÁGINA ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text("Don't have an account?", style: TextStyle(color: Colors.white70)),
                   TextButton(
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterView())),
-                    child: const Text('Sign Up', style: TextStyle(color: redOrator, fontWeight: FontWeight.bold)),
+                    onPressed: () => Navigator.push(
+                      context, 
+                      MaterialPageRoute(builder: (context) => const RegisterView())
+                    ),
+                    child: const Text(
+                      'Sign Up', 
+                      style: TextStyle(color: redOrator, fontWeight: FontWeight.bold)
+                    ),
                   ),
                 ],
               ),
@@ -140,7 +196,10 @@ class _LoginViewState extends State<LoginView> {
         hintStyle: const TextStyle(color: Colors.grey),
         filled: true,
         fillColor: graySurface,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15), 
+          borderSide: BorderSide.none
+        ),
       ),
     );
   }

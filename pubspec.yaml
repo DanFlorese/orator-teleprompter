@@ -10,27 +10,22 @@ dependencies:
   flutter:
     sdk: flutter
   
-  # Iconos estándar
   cupertino_icons: ^1.0.8
-  
-  # BASE DE DATOS: Conexión con Supabase
   supabase_flutter: ^2.8.0
-
-  # DISEÑO Y MULTIMEDIA
   google_fonts: ^6.2.1
   image_picker: ^1.2.1
   
   # --- INFRAESTRUCTURA DE VIDEO Y CÁMARA ---
-  camera: ^0.11.0             # Control de la cámara HD
-  video_player: ^2.8.1        # Para reproducir tus grabaciones
-  video_thumbnail: ^0.5.3     # Genera las fotos de la galería
-  path_provider: ^2.1.1       # Gestión de archivos locales (.mp4)
+  camera: ^0.11.0
+  video_player: ^2.8.1
+  video_thumbnail: ^0.5.3
+  path_provider: ^2.1.1
 
   # --- SEGURIDAD Y MONETIZACIÓN ---
-  google_mobile_ads: ^5.1.0    # Gana dinero con anuncios antes de descargar
-  screen_protector: ^1.0.1     # ¡ESCUDO! Evita que graben pantalla sin pagar
-  gal: ^2.1.3                  # Guarda el video final en el carrete del usuario
-  permission_handler: ^11.3.1  # Permisos de cámara, micro y galería
+  google_mobile_ads: ^5.1.0
+  screen_protector: ^1.0.1
+  gal: ^2.1.3
+  permission_handler: ^11.3.1
   purchases_flutter: ^9.10.6
 
 dev_dependencies:
@@ -43,9 +38,12 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # assets:
-  #   - assets/images/logo.png
+  # ACTIVACIÓN DE ASSETS (Corregido)
+  assets:
+    - assets/images/logo_icon.png
+    - assets/images/logo.png
 
+# Configuración de Icono de App
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
@@ -53,6 +51,7 @@ flutter_launcher_icons:
   adaptive_icon_background: "#000000"
   adaptive_icon_foreground: "assets/images/logo.png"
 
+# Configuración de Pantalla de Carga
 flutter_native_splash:
   color: "#000000"
   image: "assets/images/logo.png"

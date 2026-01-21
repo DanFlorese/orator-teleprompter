@@ -88,7 +88,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
         Icon(Icons.lock_reset_rounded, size: 100, color: redOrator),
         SizedBox(height: 25),
         Text(
-          'Recuperar Contraseña', 
+          'Recover Password', 
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 26, 
@@ -99,7 +99,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
         ),
         SizedBox(height: 15),
         Text(
-          'Te enviaremos un enlace mágico a tu correo para restablecer tu acceso.',
+          'We’ll send a magic link to your email to restore your access.',
           textAlign: TextAlign.center,
           style: TextStyle(color: Colors.white38, fontSize: 14),
         ),
@@ -114,7 +114,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         prefixIcon: const Icon(Icons.email_outlined, color: redOrator),
-        hintText: 'Tu Email de Registro',
+        hintText: 'Your Registered Email',
         hintStyle: const TextStyle(color: Colors.white10),
         filled: true,
         fillColor: graySurface,
@@ -150,7 +150,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
               child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
             ) 
           : const Text(
-              'ENVIAR INSTRUCCIONES', 
+              'SEND INSTRUCTIONS', 
               style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2)
             ),
       ),
