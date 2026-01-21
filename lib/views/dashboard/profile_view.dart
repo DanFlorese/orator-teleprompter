@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:orator_teleprompter/core/theme.dart';
-import 'package:orator_teleprompter/views/privacy_policy_view.dart';
-import 'package:orator_teleprompter/views/terms_conditions_view.dart';
+import 'package:orator_teleprompter/views/legal/privacy_policy_view.dart';
+import 'package:orator_teleprompter/views/legal/terms_conditions_view.dart';
 import 'package:orator_teleprompter/services/purchase_service.dart';
 
 class ProfileView extends StatefulWidget {

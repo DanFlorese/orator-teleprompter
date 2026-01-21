@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:orator_teleprompter/core/theme.dart';
-import 'package:orator_teleprompter/views/login_view.dart';
-import 'package:orator_teleprompter/views/dashboard_view.dart';
-import 'package:orator_teleprompter/views/profile_view.dart';
-import 'package:orator_teleprompter/views/reset_password_view.dart';
+import 'package:orator_teleprompter/views/auth/login_view.dart';
+import 'package:orator_teleprompter/views/dashboard/dashboard_view.dart';
+import 'package:orator_teleprompter/views/dashboard/profile_view.dart';
+import 'package:orator_teleprompter/views/auth/reset_password_view.dart';
 // --- NUEVO: IMPORTACIÓN DEL SERVICIO DE COMPRAS ---
 import 'package:orator_teleprompter/services/purchase_service.dart';
 

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:orator_teleprompter/core/theme.dart';
-import 'package:orator_teleprompter/views/script_editor_view.dart';
-import 'package:orator_teleprompter/views/camera_view.dart';
+import 'package:orator_teleprompter/views/editor/script_editor_view.dart';
+import 'package:orator_teleprompter/views/prompter/camera_view.dart';
 import 'package:orator_teleprompter/widgets/smart_ad_banner.dart';
 
 class DashboardView extends StatefulWidget {

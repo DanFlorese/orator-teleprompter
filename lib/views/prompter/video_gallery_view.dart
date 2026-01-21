@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:orator_teleprompter/core/theme.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_thumbnail/video_thumbnail.dart'; // Asegúrate de tenerlo en pubspec.yaml
-import 'package:orator_teleprompter/views/video_player_view.dart';
+import 'package:orator_teleprompter/views/prompter/video_player_view.dart';
 
 class VideoGalleryView extends StatefulWidget {
   const VideoGalleryView({super.key});

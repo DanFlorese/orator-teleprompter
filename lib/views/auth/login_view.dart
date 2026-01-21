@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:orator_teleprompter/core/theme.dart';
-import 'package:orator_teleprompter/views/register_view.dart';
-import 'package:orator_teleprompter/views/dashboard_view.dart';
-import 'package:orator_teleprompter/views/forgot_password_view.dart';
+import 'package:orator_teleprompter/views/auth/register_view.dart';
+import 'package:orator_teleprompter/views/dashboard/dashboard_view.dart';
+import 'package:orator_teleprompter/views/auth/forgot_password_view.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
