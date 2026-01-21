@@ -54,7 +54,7 @@ flutter_launcher_icons:
 # Configuración de Pantalla de Carga
 flutter_native_splash:
   color: "#000000"
-  image: "assets/images/logo.png"
+  image: "assets/images/logo_splash.png"
   android_12:
     image: "assets/images/logo.png"
     icon_background_color: "#000000"
