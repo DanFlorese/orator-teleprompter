@@ -9,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
+  url_launcher: ^6.3.0
   cupertino_icons: ^1.0.8
   supabase_flutter: ^2.8.0
   google_fonts: ^6.2.1
@@ -19,14 +19,14 @@ dependencies:
   camera: ^0.11.0
   video_player: ^2.8.1
   video_thumbnail: ^0.5.3
-  path_provider: ^2.1.1
+  path_provider: ^2.1.1 # Crucial para archivos temporales antes de guardar en carrete
 
   # --- SEGURIDAD Y MONETIZACIÓN ---
   google_mobile_ads: ^5.1.0
   screen_protector: ^1.0.1
-  gal: ^2.1.3
-  permission_handler: ^11.3.1
-  purchases_flutter: ^9.10.6
+  gal: ^2.1.3 # Para guardar videos localmente
+  permission_handler: ^11.3.1 # Necesario para pedir permisos de cámara/micro/galería
+  purchases_flutter: ^9.10.6 # RevenueCat
 
 dev_dependencies:
   flutter_test:
@@ -38,10 +38,10 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # ACTIVACIÓN DE ASSETS (Corregido)
   assets:
     - assets/images/logo_icon.png
     - assets/images/logo.png
+    - assets/images/logo_splash.png # <--- AGREGADO para evitar error en splash
 
 # Configuración de Icono de App
 flutter_launcher_icons:
@@ -49,7 +49,7 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/images/logo.png"
   adaptive_icon_background: "#000000"
-  adaptive_icon_foreground: "assets/images/logo.png"
+  adaptive_icon_foreground: "assets/images/logo_icon.png" # Sugerencia: usa el logo_icon aquí
 
 # Configuración de Pantalla de Carga
 flutter_native_splash:

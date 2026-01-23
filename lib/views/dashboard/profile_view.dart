@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart'; // Nuevo: Para enlaces externos
 import 'package:orator_teleprompter/core/theme.dart';
-import 'package:orator_teleprompter/views/legal/privacy_policy_view.dart';
-import 'package:orator_teleprompter/views/legal/terms_conditions_view.dart';
 import 'package:orator_teleprompter/services/purchase_service.dart';
 
 class ProfileView extends StatefulWidget {
@@ -33,6 +32,14 @@ class _ProfileViewState extends State<ProfileView> {
     _nameController.dispose();
     _passwordConfirmController.dispose();
     super.dispose();
+  }
+
+  // --- LOGIC: OPEN EXTERNAL LINKS ---
+  Future<void> _launchURL(String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      debugPrint("Could not launch $url");
+    }
   }
 
   // --- LOGOUT LOGIC ---
@@ -285,7 +292,7 @@ class _ProfileViewState extends State<ProfileView> {
               ),
             ),
             
-            // --- ACTUALIZACIÓN: BOTÓN DORADO UPGRADE (ARRIBA DE SAVE CHANGES) ---
+            // --- BOTÓN DORADO UPGRADE ---
             const SizedBox(height: 40),
             Container(
               width: double.infinity,
@@ -301,58 +308,50 @@ class _ProfileViewState extends State<ProfileView> {
                     color: const Color(0xFFFFD700).withValues(alpha: 0.2),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(15),
-          onTap: () async {
-            // --- LLAMADA REAL A REVENUECAT ---
-            setState(() => _isLoading = true);
-        
-           // Ejecutamos la compra de $499 MXN
-           bool success = await PurchaseService.purchaseSubscription();
-        
-           if (!context.mounted) return; {
-          setState(() => _isLoading = false);
-          if (success) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('¡WELCOME TO PRO! All features unlocked.'),
-                backgroundColor: Colors.green,
+                  ),
+                ],
               ),
-            );
-          } else {
-            // No mostramos error si el usuario simplemente canceló la ventana
-            debugPrint("Compra no completada o cancelada");
-          }
-        }
-      },
-      child: const Padding(
-        padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.auto_awesome, color: Colors.black, size: 22),
-            SizedBox(width: 12),
-            Text(
-              'UPGRADE TO PRO — \$499/YR',
-              style: TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.w900, // Tu corrección de error anterior
-                fontSize: 15,
-                letterSpacing: 0.5,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(15),
+                  onTap: () async {
+                    setState(() => _isLoading = true);
+                    bool success = await PurchaseService.purchaseSubscription();
+                    if (!context.mounted) return;
+                    setState(() => _isLoading = false);
+                    if (success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('¡WELCOME TO PRO! All features unlocked.'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.auto_awesome, color: Colors.black, size: 22),
+                        SizedBox(width: 12),
+                        Text(
+                          'UPGRADE TO PRO — \$499/YR',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-          ],
-        ),
-      ),
-    ),
-  ),
-),
-const SizedBox(height: 15),
+            const SizedBox(height: 15),
 
             // --- BOTÓN SAVE CHANGES ---
             SizedBox(
@@ -377,37 +376,23 @@ const SizedBox(height: 15),
             ),
             const SizedBox(height: 30),
 
-            // --- SECCIÓN LEGAL ---
+            // --- SECCIÓN LEGAL (AHORA EXTERNA) ---
             ListTile(
-              onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const PrivacyPolicyView())),
-              leading:
-                  const Icon(Icons.privacy_tip_outlined, color: Colors.white70),
-              title: const Text('Privacy Policy',
-                  style: TextStyle(color: Colors.white70)),
-              trailing: const Icon(Icons.arrow_forward_ios,
-                  color: Colors.white24, size: 16),
+              onTap: () => _launchURL('https://oratorteleprompter.com/privacy-policy'),
+              leading: const Icon(Icons.privacy_tip_outlined, color: Colors.white70),
+              title: const Text('Privacy Policy', style: TextStyle(color: Colors.white70)),
+              trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 16),
               tileColor: graySurface.withValues(alpha: 0.3),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
             ),
             const SizedBox(height: 12),
             ListTile(
-              onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const TermsConditionsView())),
-              leading:
-                  const Icon(Icons.description_outlined, color: Colors.white70),
-              title: const Text('Terms & Conditions',
-                  style: TextStyle(color: Colors.white70)),
-              trailing: const Icon(Icons.arrow_forward_ios,
-                  color: Colors.white24, size: 16),
+              onTap: () => _launchURL('https://oratorteleprompter.com/terms-and-conditions'),
+              leading: const Icon(Icons.description_outlined, color: Colors.white70),
+              title: const Text('Terms & Conditions', style: TextStyle(color: Colors.white70)),
+              trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 16),
               tileColor: graySurface.withValues(alpha: 0.3),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
             ),
 
             const SizedBox(height: 40),
