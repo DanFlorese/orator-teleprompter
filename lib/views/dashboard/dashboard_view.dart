@@ -67,7 +67,7 @@ class _DashboardViewState extends State<DashboardView> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.account_circle_outlined,
+            icon: const Icon(Icons.settings_outlined,
                 color: Colors.white, size: 28),
             onPressed: () => Navigator.pushNamed(context, '/profile'),
           ),

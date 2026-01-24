@@ -139,7 +139,7 @@ class _SaveVideoViewState extends State<SaveVideoView> {
               height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: redOrator.withOpacity(0.1),
+                color: redOrator.withValues(alpha: .1),
               ),
             ),
           ),
@@ -171,10 +171,10 @@ class _SaveVideoViewState extends State<SaveVideoView> {
                               padding: const EdgeInsets.all(25),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: Colors.white.withOpacity(0.05),
+                                color: Colors.white.withValues(alpha: .05),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: redOrator.withOpacity(0.5 * value),
+                                    color: redOrator.withValues(alpha: 0.5 * value),
                                     blurRadius: 50 * value,
                                     spreadRadius: 5 * value,
                                   )
@@ -224,7 +224,7 @@ class _SaveVideoViewState extends State<SaveVideoView> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: redOrator.withOpacity(0.4),
+                              color: redOrator.withValues(alpha: 0.4),
                               blurRadius: 15,
                               offset: const Offset(0, 8),
                             )

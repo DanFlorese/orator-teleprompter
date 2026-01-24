@@ -9,11 +9,8 @@ class CameraView extends StatefulWidget {
   final String scriptTitle;
   final String scriptContent;
 
-  const CameraView({
-    super.key, 
-    required this.scriptTitle, 
-    required this.scriptContent
-  });
+  const CameraView(
+      {super.key, required this.scriptTitle, required this.scriptContent});
 
   @override
   State<CameraView> createState() => _CameraViewState();
@@ -22,12 +19,12 @@ class CameraView extends StatefulWidget {
 class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   CameraController? _controller;
   List<CameraDescription> _cameras = [];
-  int _selectedCameraIndex = 0; 
+  int _selectedCameraIndex = 0;
   bool _isCameraInitialized = false;
 
   bool _isRecording = false;
   bool _isPaused = false;
-  
+
   Timer? _audioTimer;
   int _countdownSeconds = 0;
   int _recordingSeconds = 0;
@@ -64,7 +61,8 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final CameraController? cameraController = _controller;
-    if (cameraController == null || !cameraController.value.isInitialized) return;
+    if (cameraController == null || !cameraController.value.isInitialized)
+      return;
     if (state == AppLifecycleState.inactive) {
       cameraController.dispose();
     } else if (state == AppLifecycleState.resumed) {
@@ -118,15 +116,20 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   }
 
   Future<void> _restartTake() async {
-    try { await _controller!.stopVideoRecording(); } catch (e) {}
+    try {
+      await _controller!.stopVideoRecording();
+    } catch (e) {
+      debugPrint("Error stopping recording: $e");
+    }
     _recordingTimer?.cancel();
-    _scrollController.position.hold(() {}); 
+    _scrollController.position.hold(() {});
     setState(() {
       _isRecording = false;
       _isPaused = false;
       _recordingSeconds = 0;
     });
-    await _scrollController.animateTo(0, duration: const Duration(milliseconds: 500), curve: Curves.easeOut);
+    await _scrollController.animateTo(0,
+        duration: const Duration(milliseconds: 500), curve: Curves.easeOut);
     _startCountdown();
   }
 
@@ -157,7 +160,9 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
         if (!_isPaused) setState(() => _recordingSeconds++);
       });
       _runAutoScroll();
-    } catch (e) { debugPrint(e.toString()); }
+    } catch (e) {
+      debugPrint(e.toString());
+    }
   }
 
   Future<void> _stopRecording() async {
@@ -165,12 +170,20 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
       final file = await _controller!.stopVideoRecording();
       _recordingTimer?.cancel();
       _scrollController.position.hold(() {});
-      setState(() { _isRecording = false; _isPaused = false; });
+      setState(() {
+        _isRecording = false;
+        _isPaused = false;
+      });
       if (mounted) {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => SaveVideoView(videoPath: file.path)));
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => SaveVideoView(videoPath: file.path)));
       }
       _scrollController.jumpTo(0);
-    } catch (e) { debugPrint(e.toString()); }
+    } catch (e) {
+      debugPrint(e.toString());
+    }
   }
 
   void _runAutoScroll() {
@@ -182,11 +195,10 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
         final remainingDistance = maxScroll - currentScroll;
         if (remainingDistance > 0) {
           final durationInSeconds = remainingDistance / _scrollSpeed;
-          _scrollController.animateTo(
-            maxScroll, 
-            duration: Duration(milliseconds: (durationInSeconds * 1000).toInt()), 
-            curve: Curves.linear
-          );
+          _scrollController.animateTo(maxScroll,
+              duration:
+                  Duration(milliseconds: (durationInSeconds * 1000).toInt()),
+              curve: Curves.linear);
         }
       }
     });
@@ -194,8 +206,12 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    if (!_isCameraInitialized || _controller == null || !_controller!.value.isInitialized) {
-      return const Scaffold(backgroundColor: Colors.black, body: Center(child: CircularProgressIndicator(color: redOrator)));
+    if (!_isCameraInitialized ||
+        _controller == null ||
+        !_controller!.value.isInitialized) {
+      return const Scaffold(
+          backgroundColor: Colors.black,
+          body: Center(child: CircularProgressIndicator(color: redOrator)));
     }
 
     return Scaffold(
@@ -203,39 +219,38 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
       body: Stack(
         children: [
           Positioned.fill(child: CameraPreview(_controller!)),
-          
+
           _buildUpperTeleprompter(),
 
           // Reading Line Indicator
           Positioned(
-            top: 160, left: 0, right: 0,
-            child: Container(height: 1, color: Colors.white.withOpacity(0.2))
-          ),
+              top: 160,
+              left: 0,
+              right: 0,
+              child: Container(
+                  height: 1, color: Colors.white.withValues(alpha: 0.2))),
 
           // REC Indicator
-          if (_isRecording) 
+          if (_isRecording)
             Positioned(
-              bottom: 140, 
-              left: 0, 
-              right: 0, 
-              child: Center(child: _buildRECIndicator())
-            ),
+                bottom: 140,
+                left: 0,
+                right: 0,
+                child: Center(child: _buildRECIndicator())),
 
           if (_countdownSeconds == 0) _buildTopTools(),
           if (_countdownSeconds > 0) _buildCountdownOverlay(),
-          
-          _buildSlider(true), 
-          _buildSlider(false), 
+
+          _buildSlider(true),
+          _buildSlider(false),
 
           if (_isRecording && !_isPaused) _buildVisualizerOverlay(),
 
           Align(
-            alignment: Alignment.bottomCenter, 
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 40), 
-              child: _buildControlBar()
-            )
-          ),
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                  padding: const EdgeInsets.only(bottom: 40),
+                  child: _buildControlBar())),
         ],
       ),
     );
@@ -243,30 +258,34 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
 
   Widget _buildUpperTeleprompter() {
     return Positioned(
-      top: 0, left: 0, right: 0,
-      height: MediaQuery.of(context).size.height * 0.45, 
-      child: ShaderMask(
-        shaderCallback: (r) => const LinearGradient(
-          begin: Alignment.topCenter, end: Alignment.bottomCenter, 
-          colors: [Colors.black, Colors.black, Colors.transparent], 
-          stops: [0.0, 0.6, 1.0]
-        ).createShader(r),
-        blendMode: BlendMode.dstIn,
-        child: SingleChildScrollView(
-          controller: _scrollController, 
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(top: 110, left: 80, right: 80, bottom: 150),
-          child: Text(
-            widget.scriptContent, textAlign: TextAlign.center, 
-            style: TextStyle(
-              fontSize: _fontSize, fontWeight: FontWeight.bold, 
-              color: Colors.white, height: 1.4,
-              shadows: const [Shadow(blurRadius: 12, color: Colors.black)]
-            )
+        top: 0,
+        left: 0,
+        right: 0,
+        height: MediaQuery.of(context).size.height * 0.45,
+        child: ShaderMask(
+          shaderCallback: (r) => const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.black, Colors.black, Colors.transparent],
+              stops: [0.0, 0.6, 1.0]).createShader(r),
+          blendMode: BlendMode.dstIn,
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(
+                top: 110, left: 80, right: 80, bottom: 150),
+            child: Text(widget.scriptContent,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: _fontSize,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    height: 1.4,
+                    shadows: const [
+                      Shadow(blurRadius: 12, color: Colors.black)
+                    ])),
           ),
-        ),
-      )
-    );
+        ));
   }
 
   Widget _buildRECIndicator() {
@@ -275,10 +294,10 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.red.withOpacity(0.5), width: 1)
-      ),
+          color: Colors.black.withValues(alpha: .6),
+          borderRadius: BorderRadius.circular(20),
+          border:
+              Border.all(color: Colors.red.withValues(alpha: 0.5), width: 1)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -289,22 +308,20 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
               return Opacity(
                 opacity: _isPaused ? 1.0 : opacity,
                 child: Container(
-                  width: 8, height: 8, 
-                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle)
-                ),
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                        color: Colors.red, shape: BoxShape.circle)),
               );
             },
           ),
           const SizedBox(width: 8),
-          Text(
-            _isPaused ? "PAUSED" : "REC $mins:$secs", 
-            style: const TextStyle(
-              color: Colors.white, 
-              fontWeight: FontWeight.bold, 
-              fontSize: 14,
-              letterSpacing: 1
-            )
-          ),
+          Text(_isPaused ? "PAUSED" : "REC $mins:$secs",
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  letterSpacing: 1)),
         ],
       ),
     );
@@ -312,7 +329,8 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
 
   Widget _buildTopTools() {
     return Positioned(
-      top: 50, right: 15,
+      top: 50,
+      right: 15,
       child: Column(
         children: [
           _toolButton(Icons.close, () => Navigator.pop(context)),
@@ -324,8 +342,10 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   Widget _toolButton(IconData icon, VoidCallback onTap) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-      child: IconButton(icon: Icon(icon, color: Colors.white), onPressed: onTap),
+      decoration:
+          const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+      child:
+          IconButton(icon: Icon(icon, color: Colors.white), onPressed: onTap),
     );
   }
 
@@ -334,8 +354,10 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
     final double currentValue = isFontSize ? _fontSize : _scrollSpeed;
 
     return Positioned(
-      left: isFontSize ? 15 : null, right: isFontSize ? null : 15,
-      top: 250, bottom: 200, 
+      left: isFontSize ? 15 : null,
+      right: isFontSize ? null : 15,
+      top: 250,
+      bottom: 200,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -351,41 +373,55 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
               ),
               child: Text(
                 currentValue.round().toString(),
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12),
               ),
             ),
           ),
           const SizedBox(height: 10),
-          Icon(isFontSize ? Icons.text_fields : Icons.speed, color: Colors.white70, size: 20),
+          Icon(isFontSize ? Icons.text_fields : Icons.speed,
+              color: Colors.white70, size: 20),
           const SizedBox(height: 10),
           Expanded(
             child: RotatedBox(
-              quarterTurns: 3, 
+              quarterTurns: 3,
               child: Listener(
                 // Detecta el inicio y fin del toque
                 onPointerDown: (_) => setState(() {
-                  if (isFontSize) _showFontValue = true; else _showSpeedValue = true;
+                  if (isFontSize) {
+                    _showFontValue = true;
+                  } else {
+                    _showSpeedValue = true;
+                  }
                 }),
                 onPointerUp: (_) => setState(() {
-                  if (isFontSize) _showFontValue = false; else _showSpeedValue = false;
+                  if (isFontSize)
+                    _showFontValue = false;
+                  else
+                    _showSpeedValue = false;
                 }),
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
-                    trackHeight: 2, 
-                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 15),
+                    trackHeight: 2,
+                    thumbShape:
+                        const RoundSliderThumbShape(enabledThumbRadius: 8),
+                    overlayShape:
+                        const RoundSliderOverlayShape(overlayRadius: 15),
                   ),
                   child: Slider(
                     value: currentValue,
-                    min: isFontSize ? 18 : 10, max: isFontSize ? 50 : 100,
+                    min: isFontSize ? 18 : 10,
+                    max: isFontSize ? 50 : 100,
                     activeColor: isFontSize ? Colors.blue : redOrator,
                     inactiveColor: Colors.white24,
                     onChanged: (v) => setState(() {
-                      if(isFontSize) { 
-                        _fontSize = v; 
-                      } else { 
-                        _scrollSpeed = v; 
-                        if(!_isPaused && _isRecording) _runAutoScroll(); 
+                      if (isFontSize) {
+                        _fontSize = v;
+                      } else {
+                        _scrollSpeed = v;
+                        if (!_isPaused && _isRecording) _runAutoScroll();
                       }
                     }),
                   ),
@@ -400,8 +436,9 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
 
   Widget _buildVisualizerOverlay() {
     return Positioned(
-      bottom: 185, 
-      left: 0, right: 0,
+      bottom: 185,
+      left: 0,
+      right: 0,
       child: Column(
         children: [
           Row(
@@ -411,13 +448,20 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
                 duration: const Duration(milliseconds: 150),
                 margin: const EdgeInsets.symmetric(horizontal: 2),
                 width: 3,
-                height: (index % 3 == 0 ? 12 : 20) * (0.5 + (DateTime.now().millisecond % 500) / 1000),
-                decoration: BoxDecoration(color: redOrator.withOpacity(0.8), borderRadius: BorderRadius.circular(2)),
+                height: (index % 3 == 0 ? 12 : 20) *
+                    (0.5 + (DateTime.now().millisecond % 500) / 1000),
+                decoration: BoxDecoration(
+                    color: redOrator.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(2)),
               );
             }),
           ),
           const SizedBox(height: 4),
-          const Text("MIC ACTIVE", style: TextStyle(color: Colors.white38, fontSize: 9, fontWeight: FontWeight.bold)),
+          const Text("MIC ACTIVE",
+              style: TextStyle(
+                  color: Colors.white38,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -425,12 +469,13 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
 
   Widget _buildCountdownOverlay() {
     return Container(
-      color: Colors.black.withOpacity(0.5), 
-      child: Center(
-        child: Text('$_countdownSeconds', 
-        style: const TextStyle(fontSize: 150, color: Colors.white, fontWeight: FontWeight.bold))
-      )
-    );
+        color: Colors.black.withValues(alpha: 0.5),
+        child: Center(
+            child: Text('$_countdownSeconds',
+                style: const TextStyle(
+                    fontSize: 150,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold))));
   }
 
   Widget _buildControlBar() {
@@ -439,46 +484,58 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
       children: [
         SizedBox(
           width: 60,
-          child: _isRecording 
-            ? (_isPaused 
-                ? IconButton(onPressed: _restartTake, icon: const Icon(Icons.replay_rounded, size: 40, color: Colors.white70)) 
-                : null)
-            : (_cameras.length > 1 
-                ? IconButton(onPressed: _switchCamera, icon: const Icon(Icons.flip_camera_ios_rounded, size: 35, color: Colors.white70)) 
-                : null),
+          child: _isRecording
+              ? (_isPaused
+                  ? IconButton(
+                      onPressed: _restartTake,
+                      icon: const Icon(Icons.replay_rounded,
+                          size: 40, color: Colors.white70))
+                  : null)
+              : (_cameras.length > 1
+                  ? IconButton(
+                      onPressed: _switchCamera,
+                      icon: const Icon(Icons.flip_camera_ios_rounded,
+                          size: 35, color: Colors.white70))
+                  : null),
         ),
         const SizedBox(width: 20),
-        if (_isRecording) IconButton(
-          onPressed: () { 
-            if(_isPaused) { 
-              _controller?.resumeVideoRecording(); 
-              setState(() => _isPaused = false);
-              _runAutoScroll(); 
-            } else { 
-              _controller?.pauseVideoRecording(); 
-              setState(() => _isPaused = true);
-              _scrollController.jumpTo(_scrollController.offset); 
-            }
-          }, 
-          icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause, size: 50, color: Colors.white)
-        ),
+        if (_isRecording)
+          IconButton(
+              onPressed: () {
+                if (_isPaused) {
+                  _controller?.resumeVideoRecording();
+                  setState(() => _isPaused = false);
+                  _runAutoScroll();
+                } else {
+                  _controller?.pauseVideoRecording();
+                  setState(() => _isPaused = true);
+                  _scrollController.jumpTo(_scrollController.offset);
+                }
+              },
+              icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause,
+                  size: 50, color: Colors.white)),
         const SizedBox(width: 20),
         GestureDetector(
-          onTap: _isRecording ? _stopRecording : (_countdownSeconds > 0 ? null : _startCountdown),
+          onTap: _isRecording
+              ? _stopRecording
+              : (_countdownSeconds > 0 ? null : _startCountdown),
           child: Container(
-            height: 80, width: 80, 
-            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 4)), 
-            child: Center(
-              child: Container(
-                height: _isRecording ? 30 : 60, 
-                width: _isRecording ? 30 : 60, 
-                decoration: BoxDecoration(color: redOrator, borderRadius: BorderRadius.circular(_isRecording ? 5 : 40))
-              )
-            )
-          ),
+              height: 80,
+              width: 80,
+              decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 4)),
+              child: Center(
+                  child: Container(
+                      height: _isRecording ? 30 : 60,
+                      width: _isRecording ? 30 : 60,
+                      decoration: BoxDecoration(
+                          color: redOrator,
+                          borderRadius:
+                              BorderRadius.circular(_isRecording ? 5 : 40))))),
         ),
         if (!_isRecording) const SizedBox(width: 60),
-        if (_isRecording) const SizedBox(width: 20), 
+        if (_isRecording) const SizedBox(width: 20),
       ],
     );
   }
