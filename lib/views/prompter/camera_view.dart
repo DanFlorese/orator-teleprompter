@@ -61,8 +61,9 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final CameraController? cameraController = _controller;
-    if (cameraController == null || !cameraController.value.isInitialized)
+    if (cameraController == null || !cameraController.value.isInitialized) {
       return;
+    }
     if (state == AppLifecycleState.inactive) {
       cameraController.dispose();
     } else if (state == AppLifecycleState.resumed) {
@@ -397,11 +398,12 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
                   }
                 }),
                 onPointerUp: (_) => setState(() {
-                  if (isFontSize)
+                  if (isFontSize) {
                     _showFontValue = false;
-                  else
+                  } else {
                     _showSpeedValue = false;
-                }),
+                  }
+                }), // <--- Esta combinación de '}' y ')' es la que te falta
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 2,

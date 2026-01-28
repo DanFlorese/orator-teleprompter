@@ -4,7 +4,6 @@ import 'package:orator_teleprompter/core/theme.dart';
 import 'package:orator_teleprompter/views/auth/register_view.dart';
 import 'package:orator_teleprompter/views/dashboard/dashboard_view.dart';
 import 'package:orator_teleprompter/views/auth/forgot_password_view.dart';
-import 'package:orator_teleprompter/widgets/logos/orator_logo.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -13,16 +12,36 @@ class LoginView extends StatefulWidget {
   State<LoginView> createState() => _LoginViewState();
 }
 
-class _LoginViewState extends State<LoginView> {
+// Se añade SingleTickerProviderStateMixin para habilitar las animaciones
+class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
 
+  late AnimationController _glowController;
+  late Animation<double> _glowAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Configuración de la animación de respiración
+    _glowController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+
+    _glowAnimation = Tween<double>(begin: 5.0, end: 25.0).animate(
+      CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
+    );
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _glowController.dispose(); // Limpieza del controlador
     super.dispose();
   }
 
@@ -56,8 +75,7 @@ class _LoginViewState extends State<LoginView> {
 
   void _showMsg(String text) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(text), backgroundColor: redOrator)
-    );
+        SnackBar(content: Text(text), backgroundColor: redOrator));
   }
 
   @override
@@ -71,31 +89,54 @@ class _LoginViewState extends State<LoginView> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 40),
+
+              // --- SECCIÓN DE MARCA CON EFECTO DE LUZ ---
+              Center(
+                child: AnimatedBuilder(
+                  animation: _glowAnimation,
+                  builder: (context, child) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: redOrator.withAlpha(128),
+                            blurRadius: _glowAnimation.value,
+                            spreadRadius: _glowAnimation.value / 3,
+                          ),
+                        ],
+                      ),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        height: 190,
+                        fit: BoxFit.contain,
+                      ),
+                    );
+                  },
+                ),
+              ),
               
-              // --- SECCIÓN DE MARCA ---
-              const Center(child: OratorLogo(size: 150)),
-              const SizedBox(height: 20),
+              const SizedBox(height: 35),
+              
               const Text(
                 'ORATOR',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 42, 
-                  fontWeight: FontWeight.bold, 
-                  color: Colors.white, 
-                  letterSpacing: -1
-                ),
+                    fontSize: 42,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: -1),
               ),
               const Text(
                 'TELEPROMPTER',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 14, 
-                  color: Colors.white54, 
-                  letterSpacing: 4, 
-                  fontWeight: FontWeight.w300
-                ),
+                    fontSize: 14,
+                    color: Colors.white54,
+                    letterSpacing: 4,
+                    fontWeight: FontWeight.w300),
               ),
-              
+
               const SizedBox(height: 60),
 
               // --- FORMULARIO DE ENTRADA ---
@@ -110,19 +151,20 @@ class _LoginViewState extends State<LoginView> {
                   prefixIcon: const Icon(Icons.lock_outline, color: redOrator),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_off : Icons.visibility, 
-                      color: Colors.grey
-                    ),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: Colors.grey),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
                   ),
                   hintText: 'Password',
                   hintStyle: const TextStyle(color: Colors.grey),
                   filled: true,
                   fillColor: graySurface,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15), 
-                    borderSide: BorderSide.none
-                  ),
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide.none),
                 ),
               ),
 
@@ -130,10 +172,11 @@ class _LoginViewState extends State<LoginView> {
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: () => Navigator.push(
-                    context, 
-                    MaterialPageRoute(builder: (context) => const ForgotPasswordView())
-                  ),
-                  child: const Text('Forgot Password?', style: TextStyle(color: Colors.white54)),
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const ForgotPasswordView())),
+                  child: const Text('Forgot Password?',
+                      style: TextStyle(color: Colors.white54)),
                 ),
               ),
 
@@ -145,19 +188,21 @@ class _LoginViewState extends State<LoginView> {
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 18),
                   backgroundColor: redOrator,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30)),
                   elevation: 0,
                 ),
-                child: _isLoading 
-                  ? const SizedBox(
-                      height: 20, 
-                      width: 20, 
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                    )
-                  : const Text(
-                      'Login', 
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)
-                    ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
+                    : const Text('Login',
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white)),
               ),
 
               const SizedBox(height: 30),
@@ -166,16 +211,16 @@ class _LoginViewState extends State<LoginView> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Don't have an account?", style: TextStyle(color: Colors.white70)),
+                  const Text("Don't have an account?",
+                      style: TextStyle(color: Colors.white70)),
                   TextButton(
                     onPressed: () => Navigator.push(
-                      context, 
-                      MaterialPageRoute(builder: (context) => const RegisterView())
-                    ),
-                    child: const Text(
-                      'Sign Up', 
-                      style: TextStyle(color: redOrator, fontWeight: FontWeight.bold)
-                    ),
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const RegisterView())),
+                    child: const Text('Sign Up',
+                        style: TextStyle(
+                            color: redOrator, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -186,7 +231,8 @@ class _LoginViewState extends State<LoginView> {
     );
   }
 
-  Widget _buildInput(TextEditingController controller, String hint, IconData icon) {
+  Widget _buildInput(
+      TextEditingController controller, String hint, IconData icon) {
     return TextField(
       controller: controller,
       style: const TextStyle(color: Colors.white),
@@ -197,9 +243,8 @@ class _LoginViewState extends State<LoginView> {
         filled: true,
         fillColor: graySurface,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15), 
-          borderSide: BorderSide.none
-        ),
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide.none),
       ),
     );
   }
