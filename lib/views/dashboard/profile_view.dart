@@ -87,7 +87,7 @@ class _ProfileViewState extends State<ProfileView> {
     setState(() => _isLoading = true);
     try {
       final imageBytes = await image.readAsBytes();
-      final fileName = '${_user!.id}.${image.path.split('.').last}';
+      final fileName = '${_user!.id}/avatar.${image.path.split('.').last}';
 
       await Supabase.instance.client.storage.from('avatars').uploadBinary(
             fileName,

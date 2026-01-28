@@ -16,8 +16,8 @@ void main() async {
 
   // Inicializamos Supabase
   await Supabase.initialize(
-    url: 'https://tohplfxtwylelfpanlcq.supabase.co',
-    anonKey: 'sb_publishable_KZXDjJERbA2_2hBAyVLaFg_Hb_fk_7K',
+    url: 'https://nbkmpybfpurecjculpib.supabase.co', 
+    anonKey: 'sb_publishable_9BHYXph2Eye6dTTmjI6WRA_k0Xhv4Tg',
   );
 
   // --- NUEVO: INICIALIZACIÓN DE REVENUECAT ---
