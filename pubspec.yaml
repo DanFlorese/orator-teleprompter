@@ -19,14 +19,15 @@ dependencies:
   camera: ^0.11.0
   video_player: ^2.8.1
   video_thumbnail: ^0.5.3
-  path_provider: ^2.1.1 # Crucial para archivos temporales antes de guardar en carrete
+  path_provider: ^2.1.1 
 
   # --- SEGURIDAD Y MONETIZACIÓN ---
   google_mobile_ads: ^5.1.0
   screen_protector: ^1.0.1
-  gal: ^2.1.3 # Para guardar videos localmente
-  permission_handler: ^11.3.1 # Necesario para pedir permisos de cámara/micro/galería
+  gal: ^2.1.3 
+  permission_handler: ^11.3.1 
   purchases_flutter: ^9.10.6 # RevenueCat
+  flutter_dotenv: ^6.0.0 # - Para manejo de variables de entorno
 
 dev_dependencies:
   flutter_test:
@@ -39,6 +40,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - .env # - Importante: carga el archivo de llaves
     - assets/images/logo_icon.png
     - assets/images/logo.png
     - assets/images/logo_splash.png
@@ -47,15 +49,15 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/images/logo_icon.png" # Usamos el icono (sin texto) para que quepa bien en el círculo
+  image_path: "assets/images/logo_icon.png" 
   adaptive_icon_background: "#000000"
   adaptive_icon_foreground: "assets/images/logo_icon.png"
 
 # Configuración de Pantalla de Carga
 flutter_native_splash:
   color: "#000000"
-  image: "assets/images/logo_splash.png" # Tu logo completo para el Splash
+  image: "assets/images/logo_splash.png" 
   android_12:
-    image: "assets/images/logo_splash.png" # Mantenemos consistencia aquí
+    image: "assets/images/logo_splash.png" 
     icon_background_color: "#000000"
   web: false

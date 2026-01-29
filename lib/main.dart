@@ -7,6 +7,7 @@ import 'package:orator_teleprompter/views/dashboard/profile_view.dart';
 import 'package:orator_teleprompter/views/auth/reset_password_view.dart';
 // --- NUEVO: IMPORTACIÓN DEL SERVICIO DE COMPRAS ---
 import 'package:orator_teleprompter/services/purchase_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // 1. Definimos la llave global para navegar sin depender del contexto local
 final navigatorKey = GlobalKey<NavigatorState>();
@@ -16,8 +17,8 @@ void main() async {
 
   // Inicializamos Supabase
   await Supabase.initialize(
-    url: 'https://nbkmpybfpurecjculpib.supabase.co', 
-    anonKey: 'sb_publishable_9BHYXph2Eye6dTTmjI6WRA_k0Xhv4Tg',
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
 
   // --- NUEVO: INICIALIZACIÓN DE REVENUECAT ---
@@ -27,7 +28,7 @@ void main() async {
   // 2. Escuchamos cambios en la autenticación (especialmente recuperación de clave)
   Supabase.instance.client.auth.onAuthStateChange.listen((data) {
     final AuthChangeEvent event = data.event;
-    
+
     if (event == AuthChangeEvent.passwordRecovery) {
       navigatorKey.currentState?.pushReplacement(
         MaterialPageRoute(builder: (context) => const ResetPasswordView()),
@@ -47,11 +48,11 @@ class OratorApp extends StatelessWidget {
     final session = Supabase.instance.client.auth.currentSession;
 
     return MaterialApp(
-      navigatorKey: navigatorKey, 
+      navigatorKey: navigatorKey,
       title: 'Orator Teleprompter',
       debugShowCheckedModeBanner: false,
       theme: oratorTheme,
-      
+
       // La pantalla inicial según la sesión
       home: session != null ? const DashboardView() : const LoginView(),
 
