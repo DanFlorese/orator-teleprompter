@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:url_launcher/url_launcher.dart'; // Nuevo: Para enlaces externos
+import 'package:url_launcher/url_launcher.dart';
 import 'package:orator_teleprompter/core/theme.dart';
 import 'package:orator_teleprompter/services/purchase_service.dart';
 
@@ -17,6 +17,8 @@ class _ProfileViewState extends State<ProfileView> {
   final _passwordConfirmController = TextEditingController();
   bool _isLoading = false;
   bool _isPasswordVisible = false;
+  bool _isPro = false;
+  String _annualPrice = "..."; // Se cargará dinámicamente desde la tienda
   String? _avatarUrl;
 
   final User? _user = Supabase.instance.client.auth.currentUser;
@@ -24,7 +26,7 @@ class _ProfileViewState extends State<ProfileView> {
   @override
   void initState() {
     super.initState();
-    _getInitialProfile();
+    _loadInitialData();
   }
 
   @override
@@ -32,6 +34,50 @@ class _ProfileViewState extends State<ProfileView> {
     _nameController.dispose();
     _passwordConfirmController.dispose();
     super.dispose();
+  }
+
+  // --- LOGIC: INITIAL LOAD (SUPABASE + REVENUECAT) ---
+  Future<void> _loadInitialData() async {
+    if (_user == null) return;
+    setState(() => _isLoading = true);
+
+    // Ejecutamos las consultas en paralelo para mejorar la velocidad
+    final results = await Future.wait([
+      PurchaseService.isUserPremium(),
+      PurchaseService.getAnnualPrice(),
+      Supabase.instance.client.from('profiles').select().eq('id', _user!.id).maybeSingle(),
+    ]);
+
+    if (mounted) {
+      setState(() {
+        _isPro = results[0] as bool;
+        _annualPrice = (results[1] as String?) ?? "\$499/YR";
+        final data = results[2] as Map<String, dynamic>?;
+        if (data != null) {
+          _nameController.text = data['display_name'] ?? '';
+          _avatarUrl = data['avatar_url'];
+        }
+        _isLoading = false;
+      });
+    }
+  }
+
+  // --- LOGIC: RESTORE PURCHASES (REQUISITO APPLE) ---
+  Future<void> _restorePurchases() async {
+    setState(() => _isLoading = true);
+    final restored = await PurchaseService.restorePurchases();
+    if (mounted) {
+      setState(() {
+        _isPro = restored;
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(restored ? "¡Purchases Restored!" : "No active subscriptions found."),
+          backgroundColor: restored ? Colors.green : redOrator,
+        ),
+      );
+    }
   }
 
   // --- LOGIC: OPEN EXTERNAL LINKS ---
@@ -47,12 +93,8 @@ class _ProfileViewState extends State<ProfileView> {
     try {
       setState(() => _isLoading = true);
       await Supabase.instance.client.auth.signOut();
-
       if (mounted) {
-        Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil(
-          '/login',
-          (route) => false,
-        );
+        Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil('/login', (route) => false);
       }
     } catch (e) {
       debugPrint("Logout error: $e");
@@ -61,49 +103,22 @@ class _ProfileViewState extends State<ProfileView> {
     }
   }
 
-  Future<void> _getInitialProfile() async {
-    if (_user == null) return;
-    final data = await Supabase.instance.client
-        .from('profiles')
-        .select()
-        .eq('id', _user!.id)
-        .maybeSingle();
-
-    if (data != null) {
-      setState(() {
-        _nameController.text = data['display_name'] ?? '';
-        _avatarUrl = data['avatar_url'];
-      });
-    }
-  }
-
   // --- LOGIC: UPLOAD & UPDATE ---
   Future<void> _pickAndUploadImage() async {
     final picker = ImagePicker();
-    final XFile? image =
-        await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
     if (image == null || _user == null) return;
 
     setState(() => _isLoading = true);
     try {
       final imageBytes = await image.readAsBytes();
       final fileName = '${_user!.id}/avatar.${image.path.split('.').last}';
-
-      await Supabase.instance.client.storage.from('avatars').uploadBinary(
-            fileName,
-            imageBytes,
-            fileOptions: const FileOptions(upsert: true),
-          );
-
-      final String publicUrl =
-          Supabase.instance.client.storage.from('avatars').getPublicUrl(fileName);
+      await Supabase.instance.client.storage.from('avatars').uploadBinary(fileName, imageBytes, fileOptions: const FileOptions(upsert: true));
+      final String publicUrl = Supabase.instance.client.storage.from('avatars').getPublicUrl(fileName);
       setState(() => _avatarUrl = publicUrl);
       _updateProfile(newAvatarUrl: publicUrl);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Upload Error: $e'), backgroundColor: redOrator));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload Error: $e'), backgroundColor: redOrator));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -119,14 +134,10 @@ class _ProfileViewState extends State<ProfileView> {
         'updated_at': DateTime.now().toIso8601String(),
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile updated successfully!')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated successfully!')));
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Update Error: $e')));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Update Error: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -142,15 +153,9 @@ class _ProfileViewState extends State<ProfileView> {
       );
       await Supabase.instance.client.rpc('delete_user');
       await Supabase.instance.client.auth.signOut();
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-      }
+      if (mounted) Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text("Error: Incorrect password"),
-            backgroundColor: redOrator));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Error: Incorrect password"), backgroundColor: redOrator));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -159,21 +164,17 @@ class _ProfileViewState extends State<ProfileView> {
   void _showDeleteDialog() {
     _passwordConfirmController.clear();
     _isPasswordVisible = false;
-
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
             backgroundColor: graySurface,
-            title: const Text('⚠️ IRREVERSIBLE ACTION',
-                style: TextStyle(color: redOrator, fontWeight: FontWeight.bold)),
+            title: const Text('⚠️ IRREVERSIBLE ACTION', style: TextStyle(color: redOrator, fontWeight: FontWeight.bold)),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                    'To delete your account and all data permanently, please enter your password.',
-                    style: TextStyle(color: Colors.white70)),
+                const Text('To delete your account permanently, please enter your password.', style: TextStyle(color: Colors.white70)),
                 const SizedBox(height: 20),
                 TextField(
                   controller: _passwordConfirmController,
@@ -184,26 +185,17 @@ class _ProfileViewState extends State<ProfileView> {
                     hintStyle: const TextStyle(color: Colors.white24),
                     filled: true,
                     fillColor: Colors.black26,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                     suffixIcon: IconButton(
-                      icon: Icon(
-                          _isPasswordVisible
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                          color: Colors.white54),
-                      onPressed: () => setDialogState(
-                          () => _isPasswordVisible = !_isPasswordVisible),
+                      icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off, color: Colors.white54),
+                      onPressed: () => setDialogState(() => _isPasswordVisible = !_isPasswordVisible),
                     ),
                   ),
                 ),
               ],
             ),
             actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('CANCEL',
-                      style: TextStyle(color: Colors.white54))),
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL', style: TextStyle(color: Colors.white54))),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: redOrator),
                 onPressed: () {
@@ -247,19 +239,15 @@ class _ProfileViewState extends State<ProfileView> {
                 child: CircleAvatar(
                   radius: 60,
                   backgroundColor: graySurface,
-                  backgroundImage:
-                      _avatarUrl != null ? NetworkImage(_avatarUrl!) : null,
-                  child: _avatarUrl == null
-                      ? const Icon(Icons.camera_alt,
-                          size: 40, color: Colors.white24)
-                      : null,
+                  backgroundImage: _avatarUrl != null ? NetworkImage(_avatarUrl!) : null,
+                  child: _avatarUrl == null ? const Icon(Icons.camera_alt, size: 40, color: Colors.white24) : null,
                 ),
               ),
             ),
             const SizedBox(height: 10),
-            const Text('Tap to change photo',
-                style: TextStyle(color: Colors.white24, fontSize: 12)),
+            const Text('Tap to change photo', style: TextStyle(color: Colors.white24, fontSize: 12)),
             const SizedBox(height: 40),
+            
             TextField(
               controller: _nameController,
               style: const TextStyle(color: Colors.white),
@@ -268,12 +256,8 @@ class _ProfileViewState extends State<ProfileView> {
                 labelStyle: const TextStyle(color: Colors.white70),
                 filled: true,
                 fillColor: graySurface,
-                enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: const BorderSide(color: Colors.white24)),
-                focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: const BorderSide(color: redOrator)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Colors.white24)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: redOrator)),
               ),
             ),
             const SizedBox(height: 20),
@@ -286,71 +270,63 @@ class _ProfileViewState extends State<ProfileView> {
                 labelStyle: const TextStyle(color: Colors.white30),
                 filled: true,
                 fillColor: graySurface.withValues(alpha: 0.5),
-                disabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: const BorderSide(color: Colors.white10)),
+                disabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Colors.white10)),
               ),
             ),
-            
-            // --- BOTÓN DORADO UPGRADE ---
+
             const SizedBox(height: 40),
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFFD700), Color(0xFFB8860B)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(15),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFFD700).withValues(alpha: 0.2),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
+
+            // --- SECCIÓN PRO DINÁMICA ---
+            if (!_isPro) ...[
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFB8860B)]),
                   borderRadius: BorderRadius.circular(15),
-                  onTap: () async {
-                    setState(() => _isLoading = true);
-                    bool success = await PurchaseService.purchaseSubscription();
-                    if (!context.mounted) return;
-                    setState(() => _isLoading = false);
-                    if (success) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('¡WELCOME TO PRO! All features unlocked.'),
-                          backgroundColor: Colors.green,
+                  boxShadow: [BoxShadow(color: const Color(0xFFFFD700).withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(15),
+                    onTap: () async {
+                      setState(() => _isLoading = true);
+                      bool success = await PurchaseService.purchaseSubscription();
+                      if (success) await _loadInitialData();
+                      if (mounted) setState(() => _isLoading = false);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Center(
+                        child: Text(
+                          'UPGRADE TO PRO — $_annualPrice',
+                          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 15),
                         ),
-                      );
-                    }
-                  },
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.auto_awesome, color: Colors.black, size: 22),
-                        SizedBox(width: 12),
-                        Text(
-                          'UPGRADE TO PRO — \$499/YR',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 15,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+            ] else ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  color: graySurface.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: const Color(0xFFFFD700), width: 0.5),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.verified, color: Color(0xFFFFD700), size: 22),
+                    SizedBox(width: 12),
+                    Text('ORATOR PRO ACTIVE', style: TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                  ],
+                ),
+              ),
+            ],
+
             const SizedBox(height: 15),
 
             // --- BOTÓN SAVE CHANGES ---
@@ -361,22 +337,16 @@ class _ProfileViewState extends State<ProfileView> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: redOrator,
                   padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                 ),
                 child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2))
-                    : const Text('SAVE CHANGES',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('SAVE CHANGES', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
               ),
             ),
             const SizedBox(height: 30),
 
-            // --- SECCIÓN LEGAL (AHORA EXTERNA) ---
+            // --- SECCIÓN LEGAL Y RESTORE ---
             ListTile(
               onTap: () => _launchURL('https://oratorteleprompter.com/privacy-policy'),
               leading: const Icon(Icons.privacy_tip_outlined, color: Colors.white70),
@@ -387,9 +357,9 @@ class _ProfileViewState extends State<ProfileView> {
             ),
             const SizedBox(height: 12),
             ListTile(
-              onTap: () => _launchURL('https://oratorteleprompter.com/terms-and-conditions'),
-              leading: const Icon(Icons.description_outlined, color: Colors.white70),
-              title: const Text('Terms & Conditions', style: TextStyle(color: Colors.white70)),
+              onTap: _restorePurchases, // Botón obligatorio para Apple
+              leading: const Icon(Icons.restore, color: Colors.white70),
+              title: const Text('Restore Purchases', style: TextStyle(color: Colors.white70)),
               trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 16),
               tileColor: graySurface.withValues(alpha: 0.3),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -399,10 +369,7 @@ class _ProfileViewState extends State<ProfileView> {
             const Divider(color: Colors.white10),
             TextButton(
               onPressed: _showDeleteDialog,
-              child: const Text('Delete Account Forever',
-                  style: TextStyle(
-                      color: Colors.white24,
-                      decoration: TextDecoration.underline)),
+              child: const Text('Delete Account Forever', style: TextStyle(color: Colors.white24, decoration: TextDecoration.underline)),
             ),
           ],
         ),
