@@ -5,38 +5,35 @@ import 'package:orator_teleprompter/views/auth/login_view.dart';
 import 'package:orator_teleprompter/views/dashboard/dashboard_view.dart';
 import 'package:orator_teleprompter/views/dashboard/profile_view.dart';
 import 'package:orator_teleprompter/views/auth/reset_password_view.dart';
-// --- IMPORTACIÓN DEL SERVICIO DE COMPRAS ---
+// --- PURCHASE SERVICE IMPORT ---
 import 'package:orator_teleprompter/services/purchase_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-// 1. Definimos la llave global para navegar sin depender del contexto local
+// 1. Global key to navigate without local context
 final navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
-  // Asegura que los canales de la plataforma estén listos antes de ejecutar código asíncrono
+  // Ensure platform channels are ready
   WidgetsFlutterBinding.ensureInitialized();
 
-  // --- CARGA DE VARIABLES DE ENTORNO (.env) ---
-  // Vital para evitar el error 'NotInitializedError'
+  // --- LOAD ENVIRONMENT VARIABLES (.env) ---
   try {
     await dotenv.load(fileName: ".env");
-    print("Variables de entorno cargadas correctamente.");
+    debugPrint("Environment variables loaded successfully."); // Fixed: replaced print with debugPrint
   } catch (e) {
-    print("Error crítico al cargar el archivo .env: $e");
+    debugPrint("Critical error loading .env file: $e"); // Fixed: replaced print with debugPrint
   }
 
-  // --- INICIALIZACIÓN DE SUPABASE ---
-  // Ahora usamos las llaves cargadas desde dotenv
+  // --- SUPABASE INITIALIZATION ---
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL'] ?? '',
     anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
   );
 
-  // --- INICIALIZACIÓN DE REVENUECAT ---
-  // Permite verificar suscripciones desde el arranque
+  // --- REVENUECAT INITIALIZATION ---
   await PurchaseService.init();
 
-  // 2. Escuchamos cambios en la autenticación (especialmente recuperación de clave)
+  // 2. Auth state listener for password recovery
   Supabase.instance.client.auth.onAuthStateChange.listen((data) {
     final AuthChangeEvent event = data.event;
 
@@ -55,7 +52,6 @@ class OratorApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Verificamos si hay una sesión activa para decidir la pantalla inicial
     final session = Supabase.instance.client.auth.currentSession;
 
     return MaterialApp(
@@ -63,11 +59,7 @@ class OratorApp extends StatelessWidget {
       title: 'Orator Teleprompter',
       debugShowCheckedModeBanner: false,
       theme: oratorTheme,
-
-      // La pantalla inicial según la sesión detectada
       home: session != null ? const DashboardView() : const LoginView(),
-
-      // Rutas de navegación principales
       routes: {
         '/login': (context) => const LoginView(),
         '/dashboard': (context) => const DashboardView(),

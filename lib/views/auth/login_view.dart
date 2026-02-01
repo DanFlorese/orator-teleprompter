@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:purchases_flutter/purchases_flutter.dart'; // Importación necesaria para RevenueCat
 import 'package:orator_teleprompter/core/theme.dart';
 import 'package:orator_teleprompter/views/auth/register_view.dart';
 import 'package:orator_teleprompter/views/dashboard/dashboard_view.dart';
@@ -12,7 +13,6 @@ class LoginView extends StatefulWidget {
   State<LoginView> createState() => _LoginViewState();
 }
 
-// Se añade SingleTickerProviderStateMixin para habilitar las animaciones
 class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -26,7 +26,6 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
   void initState() {
     super.initState();
     
-    // Configuración de la animación de respiración
     _glowController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -41,7 +40,7 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _glowController.dispose(); // Limpieza del controlador
+    _glowController.dispose();
     super.dispose();
   }
 
@@ -53,12 +52,23 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
 
     setState(() => _isLoading = true);
     try {
+      // 1. Autenticación con Supabase
       final response = await Supabase.instance.client.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
       if (response.user != null && mounted) {
+        // 2. SINCRONIZACIÓN PROFESIONAL CON REVENUECAT
+        // Vinculamos el ID único de Supabase con el sistema de pagos
+        try {
+          await Purchases.logIn(response.user!.id);
+        } catch (e) {
+          debugPrint('Error syncing with RevenueCat: $e');
+          // No bloqueamos el login si falla RevenueCat, pero lo registramos
+        }
+
+        // 3. Navegación al Dashboard
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const DashboardView()),

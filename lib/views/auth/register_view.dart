@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:purchases_flutter/purchases_flutter.dart'; // Importación para RevenueCat
 import 'package:orator_teleprompter/core/theme.dart';
 import 'package:orator_teleprompter/views/legal/privacy_policy_view.dart';
 import 'package:orator_teleprompter/views/legal/terms_conditions_view.dart';
@@ -15,7 +16,7 @@ class RegisterView extends StatefulWidget {
 class _RegisterViewState extends State<RegisterView> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _nameController = TextEditingController(); // Nuevo: Para el perfil
+  final _nameController = TextEditingController(); 
   bool _obscurePassword = true; 
   bool _isLoading = false;
   bool _acceptedTerms = false;
@@ -39,28 +40,35 @@ class _RegisterViewState extends State<RegisterView> {
     
     try {
       // 1. Registro en Supabase con metadatos
-      // Estos metadatos serán capturados por el TRIGGER en SQL para crear el perfil
-      await Supabase.instance.client.auth.signUp(
+      final AuthResponse response = await Supabase.instance.client.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
         data: {
-          'full_name': _nameController.text.trim(), // Se mapea a display_name en profiles
+          'full_name': _nameController.text.trim(),
           'accepted_terms': true,
           'accepted_terms_at': DateTime.now().toIso8601String(),
         },
       );
       
-      if (!mounted) return;
+      if (response.user != null && mounted) {
+        // 2. SINCRONIZACIÓN CON REVENUECAT
+        // Identificamos al nuevo usuario inmediatamente
+        try {
+          await Purchases.logIn(response.user!.id);
+        } catch (e) {
+          debugPrint('Error syncing new user with RevenueCat: $e');
+        }
 
-      // 2. Feedback de bienvenida
-      _showMsg('Welcome to Orator!', isError: false);
+        // 3. Feedback de bienvenida
+        _showMsg('Welcome to Orator!', isError: false);
 
-      // 3. NAVEGACIÓN DIRECTA AL DASHBOARD (Adiós al Placeholder)
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const DashboardView()),
-        (route) => false,
-      );
+        // 4. NAVEGACIÓN DIRECTA AL DASHBOARD
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardView()),
+          (route) => false,
+        );
+      }
 
     } on AuthException catch (e) {
       _showMsg(e.message);
@@ -94,7 +102,7 @@ class _RegisterViewState extends State<RegisterView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: blackBackground,
-      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, iconTheme: const IconThemeData(color: Colors.white)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(30),
         child: Column(
@@ -107,14 +115,12 @@ class _RegisterViewState extends State<RegisterView> {
               style: TextStyle(color: Colors.grey)),
             const SizedBox(height: 40),
             
-            // Input de Nombre (Importante para tu tabla profiles)
             _buildInput(_nameController, 'Full Name', Icons.person_outline),
             const SizedBox(height: 20),
             
             _buildInput(_emailController, 'Email', Icons.email_outlined),
             const SizedBox(height: 20),
             
-            // Input de Password
             TextField(
               controller: _passwordController,
               obscureText: _obscurePassword,
@@ -135,7 +141,6 @@ class _RegisterViewState extends State<RegisterView> {
             
             const SizedBox(height: 25),
 
-            // --- SECCIÓN LEGAL ---
             Row(
               children: [
                 Checkbox(
@@ -166,7 +171,6 @@ class _RegisterViewState extends State<RegisterView> {
             
             const SizedBox(height: 30),
             
-            // --- BOTÓN DE REGISTRO ---
             ElevatedButton(
               onPressed: (_acceptedTerms && !_isLoading) ? _handleRegister : null,
               style: ElevatedButton.styleFrom(
