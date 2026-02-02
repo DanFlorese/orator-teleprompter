@@ -84,7 +84,7 @@ class _RegisterViewState extends State<RegisterView> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(text), 
-        backgroundColor: isError ? redOrator : Colors.green,
+        backgroundColor: isError ? redOrator : const Color.fromARGB(255, 112, 112, 112),
         behavior: SnackBarBehavior.floating,
       )
     );
