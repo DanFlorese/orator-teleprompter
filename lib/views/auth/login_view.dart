@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:purchases_flutter/purchases_flutter.dart'; // Importación necesaria para RevenueCat
+import 'package:purchases_flutter/purchases_flutter.dart'; 
 import 'package:orator_teleprompter/core/theme.dart';
 import 'package:orator_teleprompter/views/auth/register_view.dart';
 import 'package:orator_teleprompter/views/dashboard/dashboard_view.dart';
@@ -58,15 +58,16 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
         password: _passwordController.text.trim(),
       );
 
-      if (response.user != null && mounted) {
-        // 2. SINCRONIZACIÓN PROFESIONAL CON REVENUECAT
-        // Vinculamos el ID único de Supabase con el sistema de pagos
+      if (response.user != null) {
+        // 2. SINCRONIZACIÓN CON REVENUECAT
         try {
           await Purchases.logIn(response.user!.id);
         } catch (e) {
           debugPrint('Error syncing with RevenueCat: $e');
-          // No bloqueamos el login si falla RevenueCat, pero lo registramos
         }
+
+        // --- CORRECCIÓN: Verificar mounted antes de usar el context para navegar ---
+        if (!mounted) return;
 
         // 3. Navegación al Dashboard
         Navigator.pushReplacement(
@@ -84,8 +85,15 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
   }
 
   void _showMsg(String text) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(text), backgroundColor: redOrator));
+      SnackBar(
+        content: Text(text, style: const TextStyle(fontWeight: FontWeight.w600)), 
+        backgroundColor: redOrator,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      )
+    );
   }
 
   @override
@@ -110,7 +118,7 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: redOrator.withAlpha(128),
+                            color: redOrator.withValues(alpha: 0.5),
                             blurRadius: _glowAnimation.value,
                             spreadRadius: _glowAnimation.value / 3,
                           ),
@@ -118,7 +126,7 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                       ),
                       child: Image.asset(
                         'assets/images/logo.png',
-                        height: 190,
+                        height: 180,
                         fit: BoxFit.contain,
                       ),
                     );
@@ -133,7 +141,7 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     fontSize: 42,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w900, // Consistencia visual
                     color: Colors.white,
                     letterSpacing: -1),
               ),
@@ -149,7 +157,6 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
 
               const SizedBox(height: 60),
 
-              // --- FORMULARIO DE ENTRADA ---
               _buildInput(_emailController, 'Email', Icons.email_outlined),
               const SizedBox(height: 20),
 
@@ -161,12 +168,9 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                   prefixIcon: const Icon(Icons.lock_outline, color: redOrator),
                   suffixIcon: IconButton(
                     icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
+                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
                         color: Colors.grey),
-                    onPressed: () =>
-                        setState(() => _obscurePassword = !_obscurePassword),
+                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                   ),
                   hintText: 'Password',
                   hintStyle: const TextStyle(color: Colors.grey),
@@ -186,38 +190,39 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                       MaterialPageRoute(
                           builder: (context) => const ForgotPasswordView())),
                   child: const Text('Forgot Password?',
-                      style: TextStyle(color: Colors.white54)),
+                      style: TextStyle(color: Colors.white54, fontSize: 14)),
                 ),
               ),
 
               const SizedBox(height: 20),
 
-              // --- BOTÓN DE ACCIÓN ---
-              ElevatedButton(
-                onPressed: _isLoading ? null : _handleLogin,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-                  backgroundColor: redOrator,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30)),
-                  elevation: 0,
+              SizedBox(
+                height: 58,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _handleLogin,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: redOrator,
+                    disabledBackgroundColor: Colors.white10,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30)),
+                    elevation: 0,
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2.5))
+                      : const Text('Login',
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white)),
                 ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2))
-                    : const Text('Login',
-                        style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white)),
               ),
 
               const SizedBox(height: 30),
 
-              // --- PIE DE PÁGINA ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -241,8 +246,7 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
     );
   }
 
-  Widget _buildInput(
-      TextEditingController controller, String hint, IconData icon) {
+  Widget _buildInput(TextEditingController controller, String hint, IconData icon) {
     return TextField(
       controller: controller,
       style: const TextStyle(color: Colors.white),

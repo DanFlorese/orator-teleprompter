@@ -50,14 +50,16 @@ class _RegisterViewState extends State<RegisterView> {
         },
       );
       
-      if (response.user != null && mounted) {
+      if (response.user != null) {
         // 2. SINCRONIZACIÓN CON REVENUECAT
-        // Identificamos al nuevo usuario inmediatamente
         try {
           await Purchases.logIn(response.user!.id);
         } catch (e) {
           debugPrint('Error syncing new user with RevenueCat: $e');
         }
+
+        // --- CORRECCIÓN: Verificación de mounted antes de usar el context ---
+        if (!mounted) return;
 
         // 3. Feedback de bienvenida
         _showMsg('Welcome to Orator!', isError: false);
@@ -79,13 +81,15 @@ class _RegisterViewState extends State<RegisterView> {
     }
   }
 
-  // Helper para mostrar mensajes
+  // Helper para mostrar mensajes (con estilo mejorado)
   void _showMsg(String text, {bool isError = true}) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(text), 
-        backgroundColor: isError ? redOrator : const Color.fromARGB(255, 112, 112, 112),
+        content: Text(text, style: const TextStyle(fontWeight: FontWeight.w600)), 
+        backgroundColor: isError ? redOrator : const Color(0xFF424242),
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       )
     );
   }
@@ -102,17 +106,26 @@ class _RegisterViewState extends State<RegisterView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: blackBackground,
-      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, iconTheme: const IconThemeData(color: Colors.white)),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent, 
+        elevation: 0, 
+        iconTheme: const IconThemeData(color: Colors.white)
+      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(30),
+        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text('Create Account', 
-              style: TextStyle(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold)),
+              style: TextStyle(
+                fontSize: 32, 
+                color: Colors.white, 
+                fontWeight: FontWeight.w900, // Estilo Premium consistente
+                letterSpacing: 1.0
+              )),
             const SizedBox(height: 10),
             const Text('Start your journey with Orator Teleprompter', 
-              style: TextStyle(color: Colors.grey)),
+              style: TextStyle(color: Colors.grey, fontSize: 16)),
             const SizedBox(height: 40),
             
             _buildInput(_nameController, 'Full Name', Icons.person_outline),
@@ -169,27 +182,29 @@ class _RegisterViewState extends State<RegisterView> {
               ],
             ),
             
-            const SizedBox(height: 30),
+            const SizedBox(height: 40),
             
-            ElevatedButton(
-              onPressed: (_acceptedTerms && !_isLoading) ? _handleRegister : null,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                backgroundColor: redOrator,
-                disabledBackgroundColor: Colors.white10,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                elevation: 0,
+            SizedBox(
+              height: 58,
+              child: ElevatedButton(
+                onPressed: (_acceptedTerms && !_isLoading) ? _handleRegister : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: redOrator,
+                  disabledBackgroundColor: Colors.white10,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  elevation: 0,
+                ),
+                child: _isLoading 
+                  ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)) 
+                  : const Text(
+                      'Sign Up', 
+                      style: TextStyle(
+                        fontSize: 18, 
+                        fontWeight: FontWeight.bold, 
+                        color: Colors.white 
+                      )
+                    ),
               ),
-              child: _isLoading 
-                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-                : Text(
-                    'Sign Up', 
-                    style: TextStyle(
-                      fontSize: 18, 
-                      fontWeight: FontWeight.bold, 
-                      color: _acceptedTerms ? Colors.white : Colors.white24 
-                    )
-                  ),
             ),
           ],
         ),
