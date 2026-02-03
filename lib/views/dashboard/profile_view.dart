@@ -170,7 +170,7 @@ class _ProfileViewState extends State<ProfileView> {
         builder: (context, setDialogState) {
           return AlertDialog(
             backgroundColor: graySurface,
-            title: const Text('⚠️ IRREVERSIBLE ACTION', style: TextStyle(color: redOrator, fontWeight: FontWeight.bold)),
+            title: const Text('IRREVERSIBLE ACTION ⚠️', style: TextStyle(color: redOrator, fontWeight: FontWeight.bold)),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
