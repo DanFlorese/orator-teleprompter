@@ -18,41 +18,46 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
 
   Future<void> _handleResetPassword() async {
     final email = _emailController.text.trim();
-    if (email.isEmpty) return;
+    if (email.isEmpty) {
+      _showSnackBar('Please enter your email', isError: true);
+      return;
+    }
 
     setState(() => _isLoading = true);
 
     try {
+      // CAMBIO CRÍTICO: redirectTo ahora coincide con el Dashboard y el Manifest
       await Supabase.instance.client.auth.resetPasswordForEmail(
         email,
-        redirectTo: 'io.supabase.flutter://reset-callback/',
+        redirectTo: 'orator://reset-callback', 
       );
 
-      // CORRECCIÓN: Verificamos si el widget sigue vivo antes de usar el context
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('¡Email enviado! Revisa tu bandeja.'), 
-          backgroundColor: Colors.green
-        ),
-      );
+      _showSnackBar('Email sent! Please check your inbox.', isError: false);
+      
+      // Regresamos al login después de enviar el correo
       Navigator.pop(context);
 
     } on AuthException catch (e) {
-      if (!mounted) return; // Seguridad adicional
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: redOrator),
-      );
+      if (!mounted) return;
+      _showSnackBar(e.message, isError: true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error inesperado'), backgroundColor: redOrator),
-      );
+      _showSnackBar('An unexpected error occurred', isError: true);
     } finally {
-      // CORRECCIÓN: Seguridad al actualizar el estado tras un proceso asíncrono
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showSnackBar(String message, {required bool isError}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? redOrator : Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   // --- INTERFAZ DE USUARIO (CLEAN UI) ---
@@ -66,17 +71,19 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: SingleChildScrollView( // Añadido para evitar errores si el teclado se abre
-        padding: const EdgeInsets.symmetric(horizontal: 30),
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-            _buildHeader(),
-            const SizedBox(height: 50),
-            _buildEmailField(),
-            const SizedBox(height: 30),
-            _buildSubmitButton(),
-          ],
+      body: Center( // Centrado para mejor estética
+        child: SingleChildScrollView( 
+          padding: const EdgeInsets.symmetric(horizontal: 30),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 50),
+              _buildEmailField(),
+              const SizedBox(height: 30),
+              _buildSubmitButton(),
+            ],
+          ),
         ),
       ),
     );
@@ -91,7 +98,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
           'Recover Password', 
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 26, 
+            fontSize: 28, 
             color: Colors.white, 
             fontWeight: FontWeight.bold,
             letterSpacing: 1.0
@@ -101,7 +108,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
         Text(
           'We’ll send a magic link to your email to restore your access.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white38, fontSize: 14),
+          style: TextStyle(color: Colors.white38, fontSize: 16),
         ),
       ],
     );
@@ -115,17 +122,17 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
       decoration: InputDecoration(
         prefixIcon: const Icon(Icons.email_outlined, color: redOrator),
         hintText: 'Your Registered Email',
-        hintStyle: const TextStyle(color: Colors.white10),
+        hintStyle: const TextStyle(color: Colors.white24),
         filled: true,
         fillColor: graySurface,
-        contentPadding: const EdgeInsets.symmetric(vertical: 20),
+        contentPadding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(20), 
           borderSide: BorderSide.none
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(20),
-          borderSide: const BorderSide(color: redOrator, width: 1),
+          borderSide: const BorderSide(color: redOrator, width: 1.5),
         ),
       ),
     );
@@ -141,7 +148,8 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 20),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          elevation: 5,
+          elevation: 8,
+          shadowColor: redOrator.withOpacity(0.5),
         ),
         child: _isLoading 
           ? const SizedBox(
@@ -151,7 +159,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
             ) 
           : const Text(
               'SEND INSTRUCTIONS', 
-              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2)
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.2)
             ),
       ),
     );
