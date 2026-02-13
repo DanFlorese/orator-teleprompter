@@ -16,30 +16,33 @@ class SaveVideoView extends StatefulWidget {
 
 class _SaveVideoViewState extends State<SaveVideoView> {
   bool _isLoading = false;
-  InterstitialAd? _interstitialAd;
+  // Cambiado de InterstitialAd a RewardedAd para el intercambio por recompensa
+  RewardedAd? _rewardedAd;
 
   @override
   void initState() {
     super.initState();
-    _loadInterstitialAd();
+    _loadRewardedAd();
   }
 
   @override
   void dispose() {
-    _interstitialAd?.dispose();
+    _rewardedAd?.dispose();
     super.dispose();
   }
 
-  void _loadInterstitialAd() {
-    InterstitialAd.load(
-      adUnitId: 'ca-app-pub-3940256099942544/1033173712', 
+  // Carga el anuncio recompensado usando el ID de prueba de Android
+  void _loadRewardedAd() {
+    RewardedAd.load(
+      adUnitId: 'ca-app-pub-3940256099942544/5224354917', 
       request: const AdRequest(),
-      adLoadCallback: InterstitialAdLoadCallback(
+      rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
-          setState(() => _interstitialAd = ad);
+          setState(() => _rewardedAd = ad);
         },
         onAdFailedToLoad: (LoadAdError error) {
-          _interstitialAd = null;
+          debugPrint('RewardedAd failed to load: $error');
+          _rewardedAd = null;
         },
       ),
     );
@@ -56,7 +59,7 @@ class _SaveVideoViewState extends State<SaveVideoView> {
           "DISCARD VIDEO?",
           style: TextStyle(
             color: Colors.white, 
-            fontWeight: FontWeight.w900, // Corregido: de .black a .w900
+            fontWeight: FontWeight.w900, 
             letterSpacing: 1.2
           ),
         ),
@@ -82,23 +85,30 @@ class _SaveVideoViewState extends State<SaveVideoView> {
     ) ?? false;
   }
 
+  // Lógica principal: Muestra anuncio y al terminar guarda el video
   void _showAdAndSave() {
-    if (_interstitialAd != null) {
-      _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
+    if (_rewardedAd != null) {
+      _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (ad) {
           ad.dispose();
-          _loadInterstitialAd();
-          _saveVideoToGallery();
+          _loadRewardedAd(); // Preparamos el siguiente
         },
         onAdFailedToShowFullScreenContent: (ad, error) {
           ad.dispose();
-          _loadInterstitialAd();
+          _loadRewardedAd();
+          _saveVideoToGallery(); // Si falla, guardamos de todos modos
+        },
+      );
+
+      _rewardedAd!.show(
+        onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
+          // El usuario terminó de ver el anuncio: Recompensa activada
           _saveVideoToGallery();
         },
       );
-      _interstitialAd!.show();
-      _interstitialAd = null;
+      _rewardedAd = null;
     } else {
+      // Si por alguna razón el anuncio no está listo, no bloqueamos al usuario
       _saveVideoToGallery();
     }
   }
