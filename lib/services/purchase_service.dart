@@ -187,7 +187,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
                 onPressed: _isProcessing ? null : () async {
                   setState(() => _isProcessing = true);
                   bool success = await PurchaseService.purchaseSubscription();
-                  if (!mounted) return;
+                  if (!context.mounted) return;
                   setState(() => _isProcessing = false);
 
                   if (success) {
@@ -205,7 +205,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
                 onPressed: _isProcessing ? null : () async {
                   setState(() => _isProcessing = true);
                   bool restored = await PurchaseService.restorePurchases();
-                  if (!mounted) return;
+                  if (!context.mounted) return;
                   setState(() => _isProcessing = false);
 
                   if (restored) {

@@ -79,7 +79,6 @@ class _DashboardViewState extends State<DashboardView> {
           const SizedBox(width: 10),
         ],
       ),
-      // Eliminamos el Column y el SmartAdBanner, dejando solo el StreamBuilder
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _scriptsStream,
         builder: (context, snapshot) {
@@ -137,7 +136,7 @@ class _DashboardViewState extends State<DashboardView> {
                   padding: const EdgeInsets.only(right: 20),
                   margin: const EdgeInsets.only(bottom: 15),
                   decoration: BoxDecoration(
-                    color: Colors.redAccent.withAlpha(204), // 204 = 0.8 * 255
+                    color: Colors.redAccent.withAlpha(204),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Icon(Icons.delete_outline, color: Colors.white, size: 30),
@@ -147,7 +146,7 @@ class _DashboardViewState extends State<DashboardView> {
                   decoration: BoxDecoration(
                     color: graySurface,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withAlpha(12)), // 12 = 0.05 * 255
+                    border: Border.all(color: Colors.white.withAlpha(12)),
                   ),
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -159,7 +158,7 @@ class _DashboardViewState extends State<DashboardView> {
                       child: Text('$readTime min read • Swipe to delete',
                           style: const TextStyle(color: Colors.white38, fontSize: 12)),
                     ),
-                    trailing: InkWell(
+                    trailing: AnimatedRecordButton(
                       onTap: () {
                         Navigator.push(
                           context,
@@ -171,14 +170,6 @@ class _DashboardViewState extends State<DashboardView> {
                           ),
                         );
                       },
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: redOrator.withAlpha(25), // 25 = 0.1 * 255
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.videocam_rounded, color: redOrator, size: 28),
-                      ),
                     ),
                     onTap: () async {
                       await Navigator.push(
@@ -234,6 +225,80 @@ class _DashboardViewState extends State<DashboardView> {
             label: const Text('WRITE NOW', style: TextStyle(color: Colors.white)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Widget personalizado para el botón de grabación con animación de pulso
+class AnimatedRecordButton extends StatefulWidget {
+  final VoidCallback onTap;
+  const AnimatedRecordButton({super.key, required this.onTap});
+
+  @override
+  State<AnimatedRecordButton> createState() => _AnimatedRecordButtonState();
+}
+
+class _AnimatedRecordButtonState extends State<AnimatedRecordButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _blurAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+
+    _blurAnimation = Tween<double>(begin: 4.0, end: 12.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: widget.onTap,
+      borderRadius: BorderRadius.circular(30),
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: redOrator.withAlpha(25),
+              boxShadow: [
+                BoxShadow(
+                  color: redOrator.withAlpha((40 * _controller.value).toInt()),
+                  blurRadius: _blurAnimation.value,
+                  spreadRadius: _controller.value * 2,
+                ),
+              ],
+            ),
+            child: ScaleTransition(
+              scale: _scaleAnimation,
+              child: const Icon(
+                Icons.videocam_rounded,
+                color: redOrator,
+                size: 28,
+              ),
+            ),
+          );
+        },
       ),
     );
   }

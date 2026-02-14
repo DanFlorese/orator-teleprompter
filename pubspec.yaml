@@ -28,6 +28,7 @@ dependencies:
   permission_handler: ^11.3.1 
   purchases_flutter: ^9.10.6 # RevenueCat
   flutter_dotenv: ^6.0.0 # - Para manejo de variables de entorno
+  wakelock_plus: ^1.4.0
 
 dev_dependencies:
   flutter_test:

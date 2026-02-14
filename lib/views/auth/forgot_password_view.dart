@@ -149,7 +149,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
           padding: const EdgeInsets.symmetric(vertical: 20),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           elevation: 8,
-          shadowColor: redOrator.withOpacity(0.5),
+          shadowColor: redOrator.withAlpha(128),
         ),
         child: _isLoading 
           ? const SizedBox(

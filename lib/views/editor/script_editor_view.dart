@@ -50,7 +50,15 @@ class _ScriptEditorViewState extends State<ScriptEditorView> {
     return "${minutes.toStringAsFixed(1)} minutes";
   }
 
-  // --- MEJORA: FUNCIÓN PARA ELIMINAR SCRIPT ---
+  // --- LÓGICA: ASEGURAR SESIÓN (Prevención de InvalidJWTToken) ---
+  Future<void> _ensureActiveSession() async {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null || session.isExpired) {
+      await Supabase.instance.client.auth.refreshSession();
+    }
+  }
+
+  // --- FUNCIÓN PARA ELIMINAR SCRIPT ---
   Future<void> _deleteScript() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -66,20 +74,26 @@ class _ScriptEditorViewState extends State<ScriptEditorView> {
     );
 
     if (confirm == true && widget.script != null) {
+      setState(() => _isSaving = true);
       try {
+        await _ensureActiveSession(); // Refresco preventivo
         await Supabase.instance.client
             .from('scripts')
             .delete()
             .eq('id', widget.script!['id']);
-        if (mounted) Navigator.pop(context, true); // Regresa al dashboard confirmando el cambio
+        
+        if (mounted) Navigator.pop(context, true); 
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error deleting: $e"), backgroundColor: redOrator));
         }
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
       }
     }
   }
 
+  // --- FUNCIÓN PARA GUARDAR SCRIPT ---
   Future<void> _saveScript() async {
     if (_titleController.text.isEmpty || _contentController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -89,9 +103,11 @@ class _ScriptEditorViewState extends State<ScriptEditorView> {
     }
 
     setState(() => _isSaving = true);
-    final user = Supabase.instance.client.auth.currentUser;
 
     try {
+      await _ensureActiveSession(); // Refresco preventivo para evitar el error de la foto
+      
+      final user = Supabase.instance.client.auth.currentUser;
       final data = {
         'user_id': user?.id,
         'title': _titleController.text.trim(),
@@ -108,7 +124,6 @@ class _ScriptEditorViewState extends State<ScriptEditorView> {
             .eq('id', widget.script!['id']);
       }
 
-      // IMPORTANTE: El Navigator.pop(context, true) avisa al Dashboard que refresque
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
@@ -137,7 +152,6 @@ class _ScriptEditorViewState extends State<ScriptEditorView> {
           style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5),
         ),
         actions: [
-          // Mostrar bote de basura solo si estamos editando
           if (widget.script != null)
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.white38),
@@ -171,7 +185,7 @@ class _ScriptEditorViewState extends State<ScriptEditorView> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             child: TextField(
               controller: _titleController,
-              autofocus: widget.script == null, // Solo hace foco automático si es nuevo
+              autofocus: widget.script == null,
               style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
               decoration: const InputDecoration(
                 hintText: "Enter title...",

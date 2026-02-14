@@ -18,7 +18,7 @@ class _ProfileViewState extends State<ProfileView> {
   bool _isLoading = false;
   bool _isPasswordVisible = false;
   bool _isPro = false;
-  String _annualPrice = "..."; // Se cargará dinámicamente desde la tienda
+  String _annualPrice = "..."; 
   String? _avatarUrl;
 
   final User? _user = Supabase.instance.client.auth.currentUser;
@@ -36,12 +36,11 @@ class _ProfileViewState extends State<ProfileView> {
     super.dispose();
   }
 
-  // --- LOGIC: INITIAL LOAD (SUPABASE + REVENUECAT) ---
+  // --- LOGIC: INITIAL LOAD ---
   Future<void> _loadInitialData() async {
     if (_user == null) return;
     setState(() => _isLoading = true);
 
-    // Ejecutamos las consultas en paralelo para mejorar la velocidad
     final results = await Future.wait([
       PurchaseService.isUserPremium(),
       PurchaseService.getAnnualPrice(),
@@ -51,7 +50,7 @@ class _ProfileViewState extends State<ProfileView> {
     if (mounted) {
       setState(() {
         _isPro = results[0] as bool;
-        _annualPrice = (results[1] as String?) ?? "\$499/YR";
+        _annualPrice = (results[1] as String?) ?? "\$49.99/YR";
         final data = results[2] as Map<String, dynamic>?;
         if (data != null) {
           _nameController.text = data['display_name'] ?? '';
@@ -62,7 +61,7 @@ class _ProfileViewState extends State<ProfileView> {
     }
   }
 
-  // --- LOGIC: RESTORE PURCHASES (REQUISITO APPLE) ---
+  // --- LOGIC: RESTORE PURCHASES ---
   Future<void> _restorePurchases() async {
     setState(() => _isLoading = true);
     final restored = await PurchaseService.restorePurchases();
@@ -103,22 +102,45 @@ class _ProfileViewState extends State<ProfileView> {
     }
   }
 
-  // --- LOGIC: UPLOAD & UPDATE ---
+  // --- LOGIC: UPLOAD & UPDATE (CORREGIDO CACHÉ) ---
   Future<void> _pickAndUploadImage() async {
     final picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
+    
     if (image == null || _user == null) return;
 
     setState(() => _isLoading = true);
     try {
       final imageBytes = await image.readAsBytes();
-      final fileName = '${_user!.id}/avatar.${image.path.split('.').last}';
-      await Supabase.instance.client.storage.from('avatars').uploadBinary(fileName, imageBytes, fileOptions: const FileOptions(upsert: true));
-      final String publicUrl = Supabase.instance.client.storage.from('avatars').getPublicUrl(fileName);
-      setState(() => _avatarUrl = publicUrl);
-      _updateProfile(newAvatarUrl: publicUrl);
+      // Usamos .jpg para estandarizar
+      final fileName = '${_user!.id}/avatar.jpg'; 
+      
+      // Subimos con upsert para sobreescribir
+      await Supabase.instance.client.storage.from('avatars').uploadBinary(
+        fileName, 
+        imageBytes, 
+        fileOptions: const FileOptions(upsert: true, contentType: 'image/jpeg')
+      );
+
+      final String rawUrl = Supabase.instance.client.storage.from('avatars').getPublicUrl(fileName);
+
+      // --- TRUCO DE CACHÉ (CACHE BUSTING) ---
+      // Añadimos un timestamp único a la URL local para forzar a Flutter a recargar la imagen
+      final String timestampUrl = "$rawUrl?t=${DateTime.now().millisecondsSinceEpoch}";
+
+      if (mounted) {
+        setState(() {
+          _avatarUrl = timestampUrl;
+        });
+        // En la base de datos guardamos la URL limpia
+        await _updateProfile(newAvatarUrl: rawUrl);
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload Error: $e'), backgroundColor: redOrator));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Upload Error: $e'), backgroundColor: redOrator)
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -130,7 +152,7 @@ class _ProfileViewState extends State<ProfileView> {
       await Supabase.instance.client.from('profiles').upsert({
         'id': _user!.id,
         'display_name': _nameController.text.trim(),
-        'avatar_url': newAvatarUrl ?? _avatarUrl,
+        'avatar_url': newAvatarUrl ?? _avatarUrl?.split('?').first, // Guardamos sin el timestamp
         'updated_at': DateTime.now().toIso8601String(),
       });
       if (mounted) {
@@ -236,11 +258,24 @@ class _ProfileViewState extends State<ProfileView> {
             Center(
               child: GestureDetector(
                 onTap: _pickAndUploadImage,
-                child: CircleAvatar(
-                  radius: 60,
-                  backgroundColor: graySurface,
-                  backgroundImage: _avatarUrl != null ? NetworkImage(_avatarUrl!) : null,
-                  child: _avatarUrl == null ? const Icon(Icons.camera_alt, size: 40, color: Colors.white24) : null,
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 60,
+                      backgroundColor: graySurface,
+                      backgroundImage: _avatarUrl != null ? NetworkImage(_avatarUrl!) : null,
+                      child: _avatarUrl == null ? const Icon(Icons.person, size: 60, color: Colors.white24) : null,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(color: redOrator, shape: BoxShape.circle),
+                        child: const Icon(Icons.camera_alt, size: 20, color: Colors.white),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -276,60 +311,14 @@ class _ProfileViewState extends State<ProfileView> {
 
             const SizedBox(height: 40),
 
-            // --- SECCIÓN PRO DINÁMICA ---
             if (!_isPro) ...[
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFB8860B)]),
-                  borderRadius: BorderRadius.circular(15),
-                  boxShadow: [BoxShadow(color: const Color(0xFFFFD700).withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(15),
-                    onTap: () async {
-                      setState(() => _isLoading = true);
-                      bool success = await PurchaseService.purchaseSubscription();
-                      if (success) await _loadInitialData();
-                      if (mounted) setState(() => _isLoading = false);
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Center(
-                        child: Text(
-                          'UPGRADE TO PRO — $_annualPrice',
-                          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 15),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              _buildUpgradeCard(),
             ] else ...[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
-                  color: graySurface.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: const Color(0xFFFFD700), width: 0.5),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.verified, color: Color(0xFFFFD700), size: 22),
-                    SizedBox(width: 12),
-                    Text('ORATOR PRO ACTIVE', style: TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-                  ],
-                ),
-              ),
+              _buildProBadge(),
             ],
 
-            const SizedBox(height: 15),
+            const SizedBox(height: 25),
 
-            // --- BOTÓN SAVE CHANGES ---
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -344,29 +333,18 @@ class _ProfileViewState extends State<ProfileView> {
                     : const Text('SAVE CHANGES', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
               ),
             ),
-            const SizedBox(height: 30),
-
-            // --- SECCIÓN LEGAL Y RESTORE ---
-            ListTile(
-              onTap: () => _launchURL('https://oratorteleprompter.com/privacy-policy'),
-              leading: const Icon(Icons.privacy_tip_outlined, color: Colors.white70),
-              title: const Text('Privacy Policy', style: TextStyle(color: Colors.white70)),
-              trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 16),
-              tileColor: graySurface.withValues(alpha: 0.3),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-            ),
-            const SizedBox(height: 12),
-            ListTile(
-              onTap: _restorePurchases, // Botón obligatorio para Apple
-              leading: const Icon(Icons.restore, color: Colors.white70),
-              title: const Text('Restore Purchases', style: TextStyle(color: Colors.white70)),
-              trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 16),
-              tileColor: graySurface.withValues(alpha: 0.3),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-            ),
-
+            
             const SizedBox(height: 40),
             const Divider(color: Colors.white10),
+            const SizedBox(height: 10),
+
+            _buildLegalTile('Terms & Conditions', 'https://oratorteleprompter.com/terms-and-conditions', Icons.description_outlined),
+            const SizedBox(height: 12),
+            _buildLegalTile('Privacy Policy', 'https://oratorteleprompter.com/privacy-policy', Icons.privacy_tip_outlined),
+            const SizedBox(height: 12),
+            _buildLegalTile('Restore Purchases', null, Icons.restore, isRestore: true),
+
+            const SizedBox(height: 40),
             TextButton(
               onPressed: _showDeleteDialog,
               child: const Text('Delete Account Forever', style: TextStyle(color: Colors.white24, decoration: TextDecoration.underline)),
@@ -374,6 +352,69 @@ class _ProfileViewState extends State<ProfileView> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildUpgradeCard() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFB8860B)]),
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [BoxShadow(color: const Color(0xFFFFD700).withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(15),
+          onTap: () async {
+            setState(() => _isLoading = true);
+            bool success = await PurchaseService.purchaseSubscription();
+            if (success) await _loadInitialData();
+            if (mounted) setState(() => _isLoading = false);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+              child: Text(
+                'UPGRADE TO PRO — $_annualPrice',
+                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 15),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProBadge() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: graySurface.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0xFFFFD700), width: 0.5),
+      ),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.verified, color: Color(0xFFFFD700), size: 22),
+          SizedBox(width: 12),
+          Text('ORATOR PRO ACTIVE', style: TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegalTile(String title, String? url, IconData icon, {bool isRestore = false}) {
+    return ListTile(
+      onTap: isRestore ? _restorePurchases : () => _launchURL(url!),
+      leading: Icon(icon, color: Colors.white70),
+      title: Text(title, style: const TextStyle(color: Colors.white70)),
+      trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 16),
+      tileColor: graySurface.withValues(alpha: 0.3),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
     );
   }
 }

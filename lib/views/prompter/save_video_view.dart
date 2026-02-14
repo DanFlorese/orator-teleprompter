@@ -4,6 +4,7 @@ import 'package:gal/gal.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:orator_teleprompter/core/theme.dart'; 
+import 'package:purchases_flutter/purchases_flutter.dart'; // Importado para RevenueCat
 
 class SaveVideoView extends StatefulWidget {
   final String videoPath;
@@ -16,7 +17,6 @@ class SaveVideoView extends StatefulWidget {
 
 class _SaveVideoViewState extends State<SaveVideoView> {
   bool _isLoading = false;
-  // Cambiado de InterstitialAd a RewardedAd para el intercambio por recompensa
   RewardedAd? _rewardedAd;
 
   @override
@@ -48,41 +48,29 @@ class _SaveVideoViewState extends State<SaveVideoView> {
     );
   }
 
-  /// Muestra un diálogo de advertencia antes de salir
-  Future<bool> _showExitWarning() async {
-    return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          "DISCARD VIDEO?",
-          style: TextStyle(
-            color: Colors.white, 
-            fontWeight: FontWeight.w900, 
-            letterSpacing: 1.2
-          ),
-        ),
-        content: const Text(
-          "If you leave now, your recording will be lost forever. Are you sure?",
-          style: TextStyle(color: Colors.white70, fontSize: 16),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("DISCARD", style: TextStyle(color: Colors.white38)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: redOrator,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("KEEP & SAVE", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    ) ?? false;
+  /// NUEVO: Maneja el proceso de guardado verificando suscripción primero
+  Future<void> _handleSaveProcess() async {
+    setState(() => _isLoading = true);
+
+    try {
+      // Verificamos el estado premium actualizado de RevenueCat
+      CustomerInfo customerInfo = await Purchases.getCustomerInfo();
+      bool isPremium = customerInfo.entitlements.all['premium']?.isActive ?? false;
+
+      if (isPremium) {
+        // Si es premium, guardamos directamente
+        await _saveVideoToGallery();
+      } else {
+        // Si no es premium, quitamos el loading y vamos al flujo de anuncio
+        setState(() => _isLoading = false);
+        _showAdAndSave();
+      }
+    } catch (e) {
+      // Si falla la red o RevenueCat, por precaución permitimos el flujo de anuncio
+      debugPrint("Error checking premium status: $e");
+      setState(() => _isLoading = false);
+      _showAdAndSave();
+    }
   }
 
   // Lógica principal: Muestra anuncio y al terminar guarda el video
@@ -96,19 +84,18 @@ class _SaveVideoViewState extends State<SaveVideoView> {
         onAdFailedToShowFullScreenContent: (ad, error) {
           ad.dispose();
           _loadRewardedAd();
-          _saveVideoToGallery(); // Si falla, guardamos de todos modos
+          _saveVideoToGallery(); // Si falla el anuncio, guardamos de todos modos
         },
       );
 
       _rewardedAd!.show(
         onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
-          // El usuario terminó de ver el anuncio: Recompensa activada
           _saveVideoToGallery();
         },
       );
       _rewardedAd = null;
     } else {
-      // Si por alguna razón el anuncio no está listo, no bloqueamos al usuario
+      // Si el anuncio no está listo, guardamos directamente para no bloquear
       _saveVideoToGallery();
     }
   }
@@ -146,6 +133,42 @@ class _SaveVideoViewState extends State<SaveVideoView> {
       )
     );
     Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
+  Future<bool> _showExitWarning() async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          "DISCARD VIDEO?",
+          style: TextStyle(
+            color: Colors.white, 
+            fontWeight: FontWeight.w900, 
+            letterSpacing: 1.2
+          ),
+        ),
+        content: const Text(
+          "If you leave now, your recording will be lost forever. Are you sure?",
+          style: TextStyle(color: Colors.white70, fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("DISCARD", style: TextStyle(color: Colors.white38)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: redOrator,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("KEEP & SAVE", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    ) ?? false;
   }
 
   @override
@@ -193,7 +216,7 @@ class _SaveVideoViewState extends State<SaveVideoView> {
                       children: [
                         CircularProgressIndicator(color: redOrator),
                         SizedBox(height: 25),
-                        Text("Saving your masterpiece...", 
+                        Text("Processing...", 
                           style: TextStyle(color: Colors.white70, fontSize: 16, letterSpacing: 1.2)),
                       ],
                     )
@@ -271,7 +294,8 @@ class _SaveVideoViewState extends State<SaveVideoView> {
                               shadowColor: Colors.transparent,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                             ),
-                            onPressed: _isLoading ? null : _showAdAndSave,
+                            // CAMBIO: Ahora llama a _handleSaveProcess
+                            onPressed: _isLoading ? null : _handleSaveProcess,
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
