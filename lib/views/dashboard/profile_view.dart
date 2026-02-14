@@ -131,23 +131,22 @@ class _ProfileViewState extends State<ProfileView> {
     final String newRawUrl = Supabase.instance.client.storage.from('avatars').getPublicUrl(filePath);
 
     if (mounted) {
-      // 3. Guardamos la URL anterior para borrarla después si quieres (opcional)
-      final String? oldUrl = _avatarUrl;
-
       // 4. Actualizamos la base de datos con la NUEVA URL única
       await _updateProfile(newAvatarUrl: newRawUrl);
       
-      setState(() {
-        _avatarUrl = newRawUrl;
-      });
+      if (mounted) {
+        setState(() {
+          _avatarUrl = newRawUrl;
+        });
 
-      // 5. LIMPIEZA: Intentamos borrar la carpeta vieja o archivos viejos (opcional)
-      // Para no llenar el storage de basura, podrías listar y borrar luego, 
-      // pero lo importante es que el cambio YA FUNCIONÓ.
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Colors.green)
-      );
+        // 5. LIMPIEZA: Intentamos borrar la carpeta vieja o archivos viejos (opcional)
+        // Para no llenar el storage de basura, podrías listar y borrar luego, 
+        // pero lo importante es que el cambio YA FUNCIONÓ.
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Colors.green)
+        );
+      }
     }
   } catch (e) {
     debugPrint("DEBUG ERROR: $e");
