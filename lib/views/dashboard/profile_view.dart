@@ -102,49 +102,64 @@ class _ProfileViewState extends State<ProfileView> {
     }
   }
 
-  // --- LOGIC: UPLOAD & UPDATE (CORREGIDO CACHÉ) ---
   Future<void> _pickAndUploadImage() async {
-    final picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
+  final picker = ImagePicker();
+  final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
+  
+  if (image == null || _user == null) return;
+
+  setState(() => _isLoading = true);
+  try {
+    final imageBytes = await image.readAsBytes();
     
-    if (image == null || _user == null) return;
+    // CREAMOS UN NOMBRE ÚNICO CADA VEZ (usando milisegundos)
+    // Esto evita que Supabase choque con el archivo anterior
+    final String uniqueName = 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final String filePath = '${_user!.id}/$uniqueName'; 
 
-    setState(() => _isLoading = true);
-    try {
-      final imageBytes = await image.readAsBytes();
-      // Usamos .jpg para estandarizar
-      final fileName = '${_user!.id}/avatar.jpg'; 
+    // 1. Subida limpia (como es nombre nuevo, siempre es un INSERT)
+    await Supabase.instance.client.storage.from('avatars').uploadBinary(
+      filePath, 
+      imageBytes, 
+      fileOptions: const FileOptions(
+        contentType: 'image/jpeg',
+        cacheControl: '0', 
+      )
+    );
+
+    // 2. Obtenemos la nueva URL
+    final String newRawUrl = Supabase.instance.client.storage.from('avatars').getPublicUrl(filePath);
+
+    if (mounted) {
+      // 3. Guardamos la URL anterior para borrarla después si quieres (opcional)
+      final String? oldUrl = _avatarUrl;
+
+      // 4. Actualizamos la base de datos con la NUEVA URL única
+      await _updateProfile(newAvatarUrl: newRawUrl);
       
-      // Subimos con upsert para sobreescribir
-      await Supabase.instance.client.storage.from('avatars').uploadBinary(
-        fileName, 
-        imageBytes, 
-        fileOptions: const FileOptions(upsert: true, contentType: 'image/jpeg')
+      setState(() {
+        _avatarUrl = newRawUrl;
+      });
+
+      // 5. LIMPIEZA: Intentamos borrar la carpeta vieja o archivos viejos (opcional)
+      // Para no llenar el storage de basura, podrías listar y borrar luego, 
+      // pero lo importante es que el cambio YA FUNCIONÓ.
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Colors.green)
       );
-
-      final String rawUrl = Supabase.instance.client.storage.from('avatars').getPublicUrl(fileName);
-
-      // --- TRUCO DE CACHÉ (CACHE BUSTING) ---
-      // Añadimos un timestamp único a la URL local para forzar a Flutter a recargar la imagen
-      final String timestampUrl = "$rawUrl?t=${DateTime.now().millisecondsSinceEpoch}";
-
-      if (mounted) {
-        setState(() {
-          _avatarUrl = timestampUrl;
-        });
-        // En la base de datos guardamos la URL limpia
-        await _updateProfile(newAvatarUrl: rawUrl);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload Error: $e'), backgroundColor: redOrator)
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
+  } catch (e) {
+    debugPrint("DEBUG ERROR: $e");
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red)
+      );
+    }
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
   }
+}
 
   Future<void> _updateProfile({String? newAvatarUrl}) async {
     setState(() => _isLoading = true);
