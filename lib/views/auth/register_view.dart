@@ -23,7 +23,6 @@ class _RegisterViewState extends State<RegisterView> {
 
   // --- LÓGICA DE REGISTRO DIRECTO ---
   Future<void> _handleRegister() async {
-    // Validaciones previas
     if (!_acceptedTerms) {
       _showMsg('You must accept the terms and privacy policy');
       return;
@@ -39,7 +38,6 @@ class _RegisterViewState extends State<RegisterView> {
     setState(() => _isLoading = true);
     
     try {
-      // 1. Registro en Supabase con metadatos
       final AuthResponse response = await Supabase.instance.client.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
@@ -51,20 +49,16 @@ class _RegisterViewState extends State<RegisterView> {
       );
       
       if (response.user != null) {
-        // 2. SINCRONIZACIÓN CON REVENUECAT
         try {
           await Purchases.logIn(response.user!.id);
         } catch (e) {
           debugPrint('Error syncing new user with RevenueCat: $e');
         }
 
-        // --- CORRECCIÓN: Verificación de mounted antes de usar el context ---
         if (!mounted) return;
 
-        // 3. Feedback de bienvenida
         _showMsg('Welcome to Orator!', isError: false);
 
-        // 4. NAVEGACIÓN DIRECTA AL DASHBOARD
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const DashboardView()),
@@ -81,7 +75,6 @@ class _RegisterViewState extends State<RegisterView> {
     }
   }
 
-  // Helper para mostrar mensajes (con estilo mejorado)
   void _showMsg(String text, {bool isError = true}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -106,108 +99,131 @@ class _RegisterViewState extends State<RegisterView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: blackBackground,
+      // Extendemos el cuerpo detrás de la AppBar para que la imagen cubra todo
+      extendBodyBehindAppBar: true, 
       appBar: AppBar(
         backgroundColor: Colors.transparent, 
         elevation: 0, 
         iconTheme: const IconThemeData(color: Colors.white)
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('Create Account', 
-              style: TextStyle(
-                fontSize: 32, 
-                color: Colors.white, 
-                fontWeight: FontWeight.w900, // Estilo Premium consistente
-                letterSpacing: 1.0
-              )),
-            const SizedBox(height: 10),
-            const Text('Start your journey with Orator Teleprompter', 
-              style: TextStyle(color: Colors.grey, fontSize: 16)),
-            const SizedBox(height: 40),
-            
-            _buildInput(_nameController, 'Full Name', Icons.person_outline),
-            const SizedBox(height: 20),
-            
-            _buildInput(_emailController, 'Email', Icons.email_outlined),
-            const SizedBox(height: 20),
-            
-            TextField(
-              controller: _passwordController,
-              obscureText: _obscurePassword,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.lock_outline, color: redOrator),
-                suffixIcon: IconButton(
-                  icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
-                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+      body: Stack(
+        children: [
+          // 1. Imagen de fondo
+          Container(
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/signup.png'), // Asegúrate que la ruta coincida con tu pubspec.yaml
+                fit: BoxFit.cover,
+                // Aplicamos un filtro oscuro para que los textos resalten
+                colorFilter: ColorFilter.mode(
+                  Colors.black54, 
+                  BlendMode.darken
                 ),
-                hintText: 'Password',
-                hintStyle: const TextStyle(color: Colors.grey),
-                filled: true,
-                fillColor: graySurface,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
               ),
             ),
-            
-            const SizedBox(height: 25),
-
-            Row(
-              children: [
-                Checkbox(
-                  value: _acceptedTerms,
-                  activeColor: redOrator,
-                  checkColor: Colors.white,
-                  side: const BorderSide(color: Colors.white24, width: 2),
-                  onChanged: (value) => setState(() => _acceptedTerms = value ?? false),
-                ),
-                Expanded(
-                  child: Wrap(
-                    children: [
-                      const Text("I agree to the ", style: TextStyle(color: Colors.white70, fontSize: 13)),
-                      GestureDetector(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const TermsConditionsView())),
-                        child: const Text("Terms", style: TextStyle(color: redOrator, fontSize: 13, fontWeight: FontWeight.bold, decoration: TextDecoration.underline)),
+          ),
+          // 2. Contenido original
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Create Account', 
+                    style: TextStyle(
+                      fontSize: 32, 
+                      color: Colors.white, 
+                      fontWeight: FontWeight.w900, 
+                      letterSpacing: 1.0
+                    )),
+                  const SizedBox(height: 10),
+                  const Text('Start your journey with Orator Teleprompter', 
+                    style: TextStyle(color: Colors.white70, fontSize: 16)),
+                  const SizedBox(height: 40),
+                  
+                  _buildInput(_nameController, 'Full Name', Icons.person_outline),
+                  const SizedBox(height: 20),
+                  
+                  _buildInput(_emailController, 'Email', Icons.email_outlined),
+                  const SizedBox(height: 20),
+                  
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.lock_outline, color: redOrator),
+                      suffixIcon: IconButton(
+                        icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                       ),
-                      const Text(" and ", style: TextStyle(color: Colors.white70, fontSize: 13)),
-                      GestureDetector(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PrivacyPolicyView())),
-                        child: const Text("Privacy Policy", style: TextStyle(color: redOrator, fontSize: 13, fontWeight: FontWeight.bold, decoration: TextDecoration.underline)),
+                      hintText: 'Password',
+                      hintStyle: const TextStyle(color: Colors.grey),
+                      filled: true,
+                      fillColor: graySurface.withOpacity(0.8), // Ligera transparencia para el fondo
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 25),
+
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _acceptedTerms,
+                        activeColor: redOrator,
+                        checkColor: Colors.white,
+                        side: const BorderSide(color: Colors.white24, width: 2),
+                        onChanged: (value) => setState(() => _acceptedTerms = value ?? false),
+                      ),
+                      Expanded(
+                        child: Wrap(
+                          children: [
+                            const Text("I agree to the ", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                            GestureDetector(
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const TermsConditionsView())),
+                              child: const Text("Terms", style: TextStyle(color: redOrator, fontSize: 13, fontWeight: FontWeight.bold, decoration: TextDecoration.underline)),
+                            ),
+                            const Text(" and ", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                            GestureDetector(
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PrivacyPolicyView())),
+                              child: const Text("Privacy Policy", style: TextStyle(color: redOrator, fontSize: 13, fontWeight: FontWeight.bold, decoration: TextDecoration.underline)),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 40),
-            
-            SizedBox(
-              height: 58,
-              child: ElevatedButton(
-                onPressed: (_acceptedTerms && !_isLoading) ? _handleRegister : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: redOrator,
-                  disabledBackgroundColor: Colors.white10,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                  elevation: 0,
-                ),
-                child: _isLoading 
-                  ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)) 
-                  : const Text(
-                      'Sign Up', 
-                      style: TextStyle(
-                        fontSize: 18, 
-                        fontWeight: FontWeight.bold, 
-                        color: Colors.white 
-                      )
+                  
+                  const SizedBox(height: 40),
+                  
+                  SizedBox(
+                    height: 58,
+                    child: ElevatedButton(
+                      onPressed: (_acceptedTerms && !_isLoading) ? _handleRegister : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: redOrator,
+                        disabledBackgroundColor: Colors.white10,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                        elevation: 0,
+                      ),
+                      child: _isLoading 
+                        ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)) 
+                        : const Text(
+                            'Sign Up', 
+                            style: TextStyle(
+                              fontSize: 18, 
+                              fontWeight: FontWeight.bold, 
+                              color: Colors.white 
+                            )
+                          ),
                     ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -221,7 +237,7 @@ class _RegisterViewState extends State<RegisterView> {
         hintText: hint,
         hintStyle: const TextStyle(color: Colors.grey),
         filled: true,
-        fillColor: graySurface,
+        fillColor: graySurface.withOpacity(0.8), // Ligera transparencia
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
       ),
     );

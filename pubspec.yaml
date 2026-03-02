@@ -27,7 +27,7 @@ dependencies:
   gal: ^2.1.3 
   permission_handler: ^11.3.1 
   purchases_flutter: ^9.10.6 # RevenueCat
-  flutter_dotenv: ^6.0.0 # - Para manejo de variables de entorno
+  flutter_dotenv: ^6.0.0 
   wakelock_plus: ^1.4.0
 
 dev_dependencies:
@@ -41,10 +41,13 @@ flutter:
   uses-material-design: true
 
   assets:
-    - .env # - Importante: carga el archivo de llaves
+    - .env
     - assets/images/logo_icon.png
     - assets/images/logo.png
     - assets/images/logo_splash.png
+    - assets/images/login.png
+    - assets/images/signup.png     # <--- AGREGADA AQUÍ
+    - assets/images/dashboard.png
 
 # Configuración de Icono de App
 flutter_launcher_icons:

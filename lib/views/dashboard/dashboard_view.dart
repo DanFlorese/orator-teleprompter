@@ -60,6 +60,7 @@ class _DashboardViewState extends State<DashboardView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: blackBackground,
+      extendBodyBehindAppBar: true, // Permite que el fondo suba hasta la barra de estado
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -79,113 +80,132 @@ class _DashboardViewState extends State<DashboardView> {
           const SizedBox(width: 10),
         ],
       ),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: _scriptsStream,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(
-              child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.white)),
-            );
-          }
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: redOrator),
-            );
-          }
-
-          final scripts = snapshot.data ?? [];
-          if (scripts.isEmpty) return _buildEmptyState(context);
-
-          return ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            itemCount: scripts.length,
-            itemBuilder: (context, index) {
-              final script = scripts[index];
-              final String id = script['id'].toString();
-              final String content = script['content'] ?? '';
-              final String title = script['title'] ?? 'Untitled Script';
-              final wordCount = content.isEmpty ? 0 : content.split(RegExp(r'\s+')).length;
-              final readTime = (wordCount / 150).ceil();
-
-              return Dismissible(
-                key: Key(id),
-                direction: DismissDirection.endToStart,
-                confirmDismiss: (direction) async {
-                  return await showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      backgroundColor: graySurface,
-                      title: const Text("Delete Script?", style: TextStyle(color: Colors.white)),
-                      content: const Text("This action cannot be undone.", style: TextStyle(color: Colors.white70)),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text("CANCEL", style: TextStyle(color: Colors.white38)),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text("DELETE", style: TextStyle(color: redOrator)),
-                        ),
-                      ],
-                    ),
+      body: Stack(
+        children: [
+          // Imagen de fondo
+          Container(
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/dashboard.png'), // Asegúrate de tenerla en pubspec.yaml
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          // Capa de oscurecimiento opcional para legibilidad
+          Container(color: Colors.black.withAlpha(100)),
+          
+          // Contenido principal
+          SafeArea(
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _scriptsStream,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.white)),
                   );
-                },
-                onDismissed: (direction) => _deleteScript(id),
-                background: Container(
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 20),
-                  margin: const EdgeInsets.only(bottom: 15),
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent.withAlpha(204),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Icon(Icons.delete_outline, color: Colors.white, size: 30),
-                ),
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 15),
-                  decoration: BoxDecoration(
-                    color: graySurface,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withAlpha(12)),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    title: Text(title,
-                        style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text('$readTime min read • Swipe to delete',
-                          style: const TextStyle(color: Colors.white38, fontSize: 12)),
-                    ),
-                    trailing: AnimatedRecordButton(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => CameraView(
-                              scriptTitle: title,
-                              scriptContent: content,
-                            ),
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: redOrator),
+                  );
+                }
+
+                final scripts = snapshot.data ?? [];
+                if (scripts.isEmpty) return _buildEmptyState(context);
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  itemCount: scripts.length,
+                  itemBuilder: (context, index) {
+                    final script = scripts[index];
+                    final String id = script['id'].toString();
+                    final String content = script['content'] ?? '';
+                    final String title = script['title'] ?? 'Untitled Script';
+                    final wordCount = content.isEmpty ? 0 : content.split(RegExp(r'\s+')).length;
+                    final readTime = (wordCount / 150).ceil();
+
+                    return Dismissible(
+                      key: Key(id),
+                      direction: DismissDirection.endToStart,
+                      confirmDismiss: (direction) async {
+                        return await showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            backgroundColor: graySurface,
+                            title: const Text("Delete Script?", style: TextStyle(color: Colors.white)),
+                            content: const Text("This action cannot be undone.", style: TextStyle(color: Colors.white70)),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text("CANCEL", style: TextStyle(color: Colors.white38)),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text("DELETE", style: TextStyle(color: redOrator)),
+                              ),
+                            ],
                           ),
                         );
                       },
-                    ),
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ScriptEditorView(script: script),
+                      onDismissed: (direction) => _deleteScript(id),
+                      background: Container(
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20),
+                        margin: const EdgeInsets.only(bottom: 15),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent.withAlpha(204),
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                      );
-                      _refreshScripts();
-                    },
-                  ),
-                ),
-              );
-            },
-          );
-        },
+                        child: const Icon(Icons.delete_outline, color: Colors.white, size: 30),
+                      ),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 15),
+                        decoration: BoxDecoration(
+                          color: graySurface.withAlpha(230), // Ligeramente transparente para ver el fondo
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white.withAlpha(12)),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          title: Text(title,
+                              style: const TextStyle(
+                                  color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text('$readTime min read • Swipe to delete',
+                                style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                          ),
+                          trailing: AnimatedRecordButton(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => CameraView(
+                                    scriptTitle: title,
+                                    scriptContent: content,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ScriptEditorView(script: script),
+                              ),
+                            );
+                            _refreshScripts();
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: redOrator,
@@ -230,7 +250,6 @@ class _DashboardViewState extends State<DashboardView> {
   }
 }
 
-/// Widget personalizado para el botón de grabación con animación de pulso
 class AnimatedRecordButton extends StatefulWidget {
   final VoidCallback onTap;
   const AnimatedRecordButton({super.key, required this.onTap});
