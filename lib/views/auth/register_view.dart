@@ -160,7 +160,7 @@ class _RegisterViewState extends State<RegisterView> {
                       hintText: 'Password',
                       hintStyle: const TextStyle(color: Colors.grey),
                       filled: true,
-                      fillColor: graySurface.withOpacity(0.8), // Ligera transparencia para el fondo
+                      fillColor: graySurface.withAlpha(08), // Ligera transparencia para el fondo
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
                     ),
                   ),
@@ -237,7 +237,7 @@ class _RegisterViewState extends State<RegisterView> {
         hintText: hint,
         hintStyle: const TextStyle(color: Colors.grey),
         filled: true,
-        fillColor: graySurface.withOpacity(0.8), // Ligera transparencia
+        fillColor: graySurface.withAlpha(08), // Ligera transparencia
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
       ),
     );
