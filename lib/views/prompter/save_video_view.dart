@@ -4,7 +4,7 @@ import 'package:gal/gal.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:orator_teleprompter/core/theme.dart'; 
-import 'package:purchases_flutter/purchases_flutter.dart'; // Importado para RevenueCat
+import 'package:purchases_flutter/purchases_flutter.dart'; 
 
 class SaveVideoView extends StatefulWidget {
   final String videoPath;
@@ -31,10 +31,11 @@ class _SaveVideoViewState extends State<SaveVideoView> {
     super.dispose();
   }
 
-  // Carga el anuncio recompensado usando el ID de prueba de Android
+  /// Carga el anuncio recompensado con tu ID real de unidad
   void _loadRewardedAd() {
+    // IMPORTANTE: Reemplaza 'TU_REWARDED_UNIT_ID' con el ID que generes en AdMob (ej. ca-app-pub-2835931777848065/XXXXXXXXXX)
     RewardedAd.load(
-      adUnitId: 'ca-app-pub-3940256099942544/5224354917', 
+      adUnitId: 'ca-app-pub-2835931777848065/2794410919', 
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
@@ -48,43 +49,43 @@ class _SaveVideoViewState extends State<SaveVideoView> {
     );
   }
 
-  /// NUEVO: Maneja el proceso de guardado verificando suscripción primero
+  /// Maneja el proceso de guardado verificando suscripción en RevenueCat
   Future<void> _handleSaveProcess() async {
     setState(() => _isLoading = true);
 
     try {
-      // Verificamos el estado premium actualizado de RevenueCat
+      // Verificamos si el usuario tiene el entitlement 'premium' activo
       CustomerInfo customerInfo = await Purchases.getCustomerInfo();
       bool isPremium = customerInfo.entitlements.all['premium']?.isActive ?? false;
 
       if (isPremium) {
-        // Si es premium, guardamos directamente
+        // Usuario Premium: Guardado directo sin interrupciones
         await _saveVideoToGallery();
       } else {
-        // Si no es premium, quitamos el loading y vamos al flujo de anuncio
+        // Usuario Gratuito: Debe ver el anuncio para "pagar" el guardado
         setState(() => _isLoading = false);
         _showAdAndSave();
       }
     } catch (e) {
-      // Si falla la red o RevenueCat, por precaución permitimos el flujo de anuncio
       debugPrint("Error checking premium status: $e");
       setState(() => _isLoading = false);
+      // Por seguridad (fallo de red), permitimos el flujo de anuncio
       _showAdAndSave();
     }
   }
 
-  // Lógica principal: Muestra anuncio y al terminar guarda el video
+  /// Muestra el anuncio y al completar la recompensa, guarda el video
   void _showAdAndSave() {
     if (_rewardedAd != null) {
       _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (ad) {
           ad.dispose();
-          _loadRewardedAd(); // Preparamos el siguiente
+          _loadRewardedAd(); 
         },
         onAdFailedToShowFullScreenContent: (ad, error) {
           ad.dispose();
           _loadRewardedAd();
-          _saveVideoToGallery(); // Si falla el anuncio, guardamos de todos modos
+          _saveVideoToGallery(); // Si el anuncio falla, no bloqueamos al usuario
         },
       );
 
@@ -95,11 +96,12 @@ class _SaveVideoViewState extends State<SaveVideoView> {
       );
       _rewardedAd = null;
     } else {
-      // Si el anuncio no está listo, guardamos directamente para no bloquear
+      // Si el anuncio aún no carga, guardamos directamente para evitar mala experiencia
       _saveVideoToGallery();
     }
   }
 
+  /// Proceso físico de guardado en la galería local
   Future<void> _saveVideoToGallery() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
@@ -294,7 +296,6 @@ class _SaveVideoViewState extends State<SaveVideoView> {
                               shadowColor: Colors.transparent,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                             ),
-                            // CAMBIO: Ahora llama a _handleSaveProcess
                             onPressed: _isLoading ? null : _handleSaveProcess,
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
