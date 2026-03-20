@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:orator_teleprompter/core/theme.dart';
 import 'package:orator_teleprompter/views/editor/script_editor_view.dart';
 import 'package:orator_teleprompter/views/prompter/camera_view.dart';
+import 'package:orator_teleprompter/services/cache_service.dart';
 
 class DashboardView extends StatefulWidget {
   const DashboardView({super.key});
@@ -12,47 +14,82 @@ class DashboardView extends StatefulWidget {
 }
 
 class _DashboardViewState extends State<DashboardView> {
-  late Stream<List<Map<String, dynamic>>> _scriptsStream;
+  StreamSubscription<List<Map<String, dynamic>>>? _scriptsSubscription;
+  List<Map<String, dynamic>> _displayScripts = []; 
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _initStream();
+    _initDataPipeline();
   }
 
-  void _initStream() {
+  @override
+  void dispose() {
+    _scriptsSubscription?.cancel();
+    super.dispose();
+  }
+
+  // Inicializa carga de caché y conexión real-time
+  Future<void> _initDataPipeline() async {
+    final cached = await CacheService.getScripts();
+    if (mounted && cached.isNotEmpty) {
+      setState(() {
+        _displayScripts = cached;
+        _isLoading = false;
+      });
+    }
+
     final user = Supabase.instance.client.auth.currentUser;
-    _scriptsStream = Supabase.instance.client
+    _scriptsSubscription = Supabase.instance.client
         .from('scripts')
         .stream(primaryKey: ['id'])
         .eq('user_id', user?.id ?? '')
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .listen((data) {
+          if (mounted) {
+            setState(() {
+              _displayScripts = data;
+              _isLoading = false;
+            });
+            CacheService.setScripts(data); 
+          }
+        }, onError: (error) {
+          debugPrint("Sync Error: $error");
+          if (mounted) setState(() => _isLoading = false);
+        });
   }
 
-  void _refreshScripts() {
+  // Forzar actualización al volver de otra pantalla
+  void _refresh() {
     if (mounted) {
       setState(() {
-        _initStream();
+        _isLoading = true;
       });
+      _scriptsSubscription?.cancel();
+      _initDataPipeline();
     }
   }
 
   Future<void> _deleteScript(String id) async {
+    setState(() {
+      _displayScripts.removeWhere((element) => element['id'].toString() == id);
+    });
+
     try {
-      final messenger = ScaffoldMessenger.of(context);
       await Supabase.instance.client.from('scripts').delete().eq('id', id);
       
       if (!mounted) return;
-      
-      messenger.showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Script deleted'), 
-          backgroundColor: Colors.redAccent,
+          backgroundColor: redOrator,
           behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (e) {
       debugPrint("Error deleting: $e");
+      _refresh(); // Si falla el borrado, restauramos la lista
     }
   }
 
@@ -60,7 +97,7 @@ class _DashboardViewState extends State<DashboardView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: blackBackground,
-      extendBodyBehindAppBar: true, // Permite que el fondo suba hasta la barra de estado
+      extendBodyBehindAppBar: true, 
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -82,128 +119,22 @@ class _DashboardViewState extends State<DashboardView> {
       ),
       body: Stack(
         children: [
-          // Imagen de fondo
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/images/dashboard.png'), // Asegúrate de tenerla en pubspec.yaml
+                image: AssetImage('assets/images/dashboard.png'),
                 fit: BoxFit.cover,
               ),
             ),
           ),
-          // Capa de oscurecimiento opcional para legibilidad
-          Container(color: Colors.black.withAlpha(100)),
+          Container(color: Colors.black.withAlpha(102)),
           
-          // Contenido principal
           SafeArea(
-            child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _scriptsStream,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.white)),
-                  );
-                }
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: redOrator),
-                  );
-                }
-
-                final scripts = snapshot.data ?? [];
-                if (scripts.isEmpty) return _buildEmptyState(context);
-
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  itemCount: scripts.length,
-                  itemBuilder: (context, index) {
-                    final script = scripts[index];
-                    final String id = script['id'].toString();
-                    final String content = script['content'] ?? '';
-                    final String title = script['title'] ?? 'Untitled Script';
-                    final wordCount = content.isEmpty ? 0 : content.split(RegExp(r'\s+')).length;
-                    final readTime = (wordCount / 150).ceil();
-
-                    return Dismissible(
-                      key: Key(id),
-                      direction: DismissDirection.endToStart,
-                      confirmDismiss: (direction) async {
-                        return await showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            backgroundColor: graySurface,
-                            title: const Text("Delete Script?", style: TextStyle(color: Colors.white)),
-                            content: const Text("This action cannot be undone.", style: TextStyle(color: Colors.white70)),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, false),
-                                child: const Text("CANCEL", style: TextStyle(color: Colors.white38)),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, true),
-                                child: const Text("DELETE", style: TextStyle(color: redOrator)),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                      onDismissed: (direction) => _deleteScript(id),
-                      background: Container(
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 20),
-                        margin: const EdgeInsets.only(bottom: 15),
-                        decoration: BoxDecoration(
-                          color: Colors.redAccent.withAlpha(204),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Icon(Icons.delete_outline, color: Colors.white, size: 30),
-                      ),
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 15),
-                        decoration: BoxDecoration(
-                          color: graySurface.withAlpha(230), // Ligeramente transparente para ver el fondo
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white.withAlpha(12)),
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          title: Text(title,
-                              style: const TextStyle(
-                                  color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-                          subtitle: Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Text('$readTime min read • Swipe to delete',
-                                style: const TextStyle(color: Colors.white38, fontSize: 12)),
-                          ),
-                          trailing: AnimatedRecordButton(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => CameraView(
-                                    scriptTitle: title,
-                                    scriptContent: content,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          onTap: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ScriptEditorView(script: script),
-                              ),
-                            );
-                            _refreshScripts();
-                          },
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+            child: _isLoading && _displayScripts.isEmpty
+                ? const Center(child: CircularProgressIndicator(color: redOrator))
+                : _displayScripts.isEmpty 
+                    ? _buildEmptyState(context)
+                    : _buildScriptsList(_displayScripts),
           ),
         ],
       ),
@@ -217,9 +148,102 @@ class _DashboardViewState extends State<DashboardView> {
             context,
             MaterialPageRoute(builder: (context) => const ScriptEditorView()),
           );
-          _refreshScripts();
+          _refresh(); // Actualiza al volver
         },
       ),
+    );
+  }
+
+  Widget _buildScriptsList(List<Map<String, dynamic>> scripts) {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      itemCount: scripts.length,
+      itemBuilder: (context, index) {
+        final script = scripts[index];
+        final String id = script['id'].toString();
+        final String content = script['content'] ?? '';
+        final String title = script['title'] ?? 'Untitled Script';
+        final wordCount = content.isEmpty ? 0 : content.split(RegExp(r'\s+')).length;
+        final readTime = (wordCount / 150).ceil();
+
+        return Dismissible(
+          key: Key("script_key_$id"),
+          direction: DismissDirection.endToStart,
+          confirmDismiss: (direction) async {
+            return await showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                backgroundColor: graySurface,
+                title: const Text("Delete Script?", style: TextStyle(color: Colors.white)),
+                content: const Text("This action cannot be undone.", style: TextStyle(color: Colors.white70)),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text("CANCEL", style: TextStyle(color: Colors.white38)),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text("DELETE", style: TextStyle(color: redOrator)),
+                  ),
+                ],
+              ),
+            );
+          },
+          onDismissed: (direction) => _deleteScript(id),
+          background: Container(
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 20),
+            margin: const EdgeInsets.only(bottom: 15),
+            decoration: BoxDecoration(
+              color: redOrator.withAlpha(204),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(Icons.delete_outline, color: Colors.white, size: 30),
+          ),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 15),
+            decoration: BoxDecoration(
+              color: graySurface.withAlpha(230),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withAlpha(13)),
+            ),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              title: Text(title,
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text('$readTime min read • Swipe to delete',
+                    style: const TextStyle(color: Colors.white38, fontSize: 12)),
+              ),
+              trailing: AnimatedRecordButton(
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CameraView(
+                        scriptTitle: title,
+                        scriptContent: content,
+                      ),
+                    ),
+                  );
+                  _refresh();
+                },
+              ),
+              onTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ScriptEditorView(script: script),
+                  ),
+                );
+                _refresh(); // Actualiza al volver de editar
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -228,7 +252,7 @@ class _DashboardViewState extends State<DashboardView> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.auto_stories_outlined, size: 100, color: Colors.white.withAlpha(25)),
+          Icon(Icons.auto_stories_outlined, size: 100, color: Colors.white.withAlpha(26)),
           const SizedBox(height: 20),
           const Text('YOUR STAGE IS READY',
               style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
@@ -239,7 +263,7 @@ class _DashboardViewState extends State<DashboardView> {
                 context,
                 MaterialPageRoute(builder: (context) => const ScriptEditorView()),
               );
-              _refreshScripts();
+              _refresh();
             },
             icon: const Icon(Icons.add, color: redOrator),
             label: const Text('WRITE NOW', style: TextStyle(color: Colors.white)),
@@ -299,10 +323,10 @@ class _AnimatedRecordButtonState extends State<AnimatedRecordButton>
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: redOrator.withAlpha(25),
+              color: redOrator.withAlpha(26),
               boxShadow: [
                 BoxShadow(
-                  color: redOrator.withAlpha((40 * _controller.value).toInt()),
+                  color: redOrator.withAlpha(51),
                   blurRadius: _blurAnimation.value,
                   spreadRadius: _controller.value * 2,
                 ),

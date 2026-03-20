@@ -2,9 +2,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class UserService {
   final _supabase = Supabase.instance.client;
+  
+  // Variable interna para evitar consultas repetitivas en la misma sesión
+  bool? _isPremiumCache;
 
-  // Esta función nos dirá si debemos mostrar anuncios o no
   Future<bool> isUserPremium() async {
+    // Si ya lo consultamos en esta sesión, lo devolvemos rápido
+    if (_isPremiumCache != null) return _isPremiumCache!;
+
     final user = _supabase.auth.currentUser;
     if (user == null) return false;
 
@@ -13,11 +18,16 @@ class UserService {
           .from('profiles')
           .select('is_premium')
           .eq('id', user.id)
-          .single();
+          .maybeSingle(); // maybeSingle evita excepciones si el perfil no existe
       
-      return data['is_premium'] ?? false;
+      _isPremiumCache = data?['is_premium'] ?? false;
+      return _isPremiumCache!;
     } catch (e) {
-      return false; // Por seguridad, si hay error, asumimos que no es premium
+      // Si hay un error de red, no cacheamos el resultado para reintentar luego
+      return false; 
     }
   }
+
+  // Método para limpiar el caché (útil al hacer logout)
+  void clearCache() => _isPremiumCache = null;
 }

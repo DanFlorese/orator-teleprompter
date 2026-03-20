@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:orator_teleprompter/core/theme.dart';
 import 'package:orator_teleprompter/services/purchase_service.dart';
+import 'package:orator_teleprompter/services/cache_service.dart';
 
 class ProfileView extends StatefulWidget {
   const ProfileView({super.key});
@@ -26,7 +27,8 @@ class _ProfileViewState extends State<ProfileView> {
   @override
   void initState() {
     super.initState();
-    _loadInitialData();
+    _loadFromCacheFirst(); // Carga instantánea
+    _loadInitialData();    // Carga desde servidor
   }
 
   @override
@@ -36,11 +38,22 @@ class _ProfileViewState extends State<ProfileView> {
     super.dispose();
   }
 
+  // --- NUEVO: CARGA INSTANTÁNEA DESDE CACHÉ ---
+  Future<void> _loadFromCacheFirst() async {
+    final cached = await CacheService.getProfile();
+    if (mounted && cached['name'] != null) {
+      setState(() {
+        _nameController.text = cached['name'] ?? '';
+        _avatarUrl = cached['avatar_url'];
+      });
+    }
+  }
+
   // --- LOGIC: INITIAL LOAD ---
   Future<void> _loadInitialData() async {
     if (_user == null) return;
-    setState(() => _isLoading = true);
-
+    
+    // No ponemos _isLoading = true aquí para no bloquear la vista si ya hay caché
     final results = await Future.wait([
       PurchaseService.isUserPremium(),
       PurchaseService.getAnnualPrice(),
@@ -55,8 +68,9 @@ class _ProfileViewState extends State<ProfileView> {
         if (data != null) {
           _nameController.text = data['display_name'] ?? '';
           _avatarUrl = data['avatar_url'];
+          // Guardamos en caché para la próxima vez
+          CacheService.setProfile(_nameController.text, _avatarUrl);
         }
-        _isLoading = false;
       });
     }
   }
@@ -87,11 +101,17 @@ class _ProfileViewState extends State<ProfileView> {
     }
   }
 
-  // --- LOGOUT LOGIC ---
+  // --- LOGOUT LOGIC MEJORADO CON LIMPIEZA ---
   Future<void> _signOut() async {
     try {
       setState(() => _isLoading = true);
+      
+      // 1. Limpiamos caché local por seguridad
+      await CacheService.clearAllCache();
+      
+      // 2. Cerramos sesión en Supabase
       await Supabase.instance.client.auth.signOut();
+      
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil('/login', (route) => false);
       }
@@ -127,13 +147,12 @@ class _ProfileViewState extends State<ProfileView> {
 
       if (mounted) {
         await _updateProfile(newAvatarUrl: newRawUrl);
-        if (mounted) {
-          setState(() {
-            _avatarUrl = newRawUrl;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Colors.green));
-        }
+        // Actualizamos caché local también
+        CacheService.setProfile(_nameController.text, newRawUrl);
+        
+        setState(() {
+          _avatarUrl = newRawUrl;
+        });
       }
     } catch (e) {
       debugPrint("DEBUG ERROR: $e");
@@ -148,12 +167,19 @@ class _ProfileViewState extends State<ProfileView> {
   Future<void> _updateProfile({String? newAvatarUrl}) async {
     setState(() => _isLoading = true);
     try {
+      final displayName = _nameController.text.trim();
+      final avatarToSave = newAvatarUrl ?? _avatarUrl?.split('?').first;
+
       await Supabase.instance.client.from('profiles').upsert({
         'id': _user!.id,
-        'display_name': _nameController.text.trim(),
-        'avatar_url': newAvatarUrl ?? _avatarUrl?.split('?').first,
+        'display_name': displayName,
+        'avatar_url': avatarToSave,
         'updated_at': DateTime.now().toIso8601String(),
       });
+
+      // Guardamos en caché tras éxito
+      await CacheService.setProfile(displayName, avatarToSave);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated successfully!')));
       }
@@ -172,6 +198,10 @@ class _ProfileViewState extends State<ProfileView> {
         email: _user!.email!,
         password: _passwordConfirmController.text.trim(),
       );
+      
+      // Limpiamos todo antes de borrar
+      await CacheService.clearAllCache();
+      
       await Supabase.instance.client.rpc('delete_user');
       await Supabase.instance.client.auth.signOut();
       if (mounted) Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
@@ -198,7 +228,6 @@ class _ProfileViewState extends State<ProfileView> {
             title: const Text('IRREVERSIBLE ACTION ⚠️',
                 style: TextStyle(color: redOrator, fontWeight: FontWeight.bold)),
             content: SingleChildScrollView(
-              // SOLUCIÓN AL OVERFLOW: Permite scroll cuando sale el teclado
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -319,7 +348,7 @@ class _ProfileViewState extends State<ProfileView> {
                 labelText: 'Email Address',
                 labelStyle: const TextStyle(color: Colors.white30),
                 filled: true,
-                fillColor: graySurface.withValues(alpha: 0.5),
+                fillColor: graySurface.withAlpha(128),
                 disabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(15),
                     borderSide: const BorderSide(color: Colors.white10)),
@@ -372,6 +401,7 @@ class _ProfileViewState extends State<ProfileView> {
     );
   }
 
+  // --- WIDGET BUILDERS ---
   Widget _buildUpgradeCard() {
     return Container(
       width: double.infinity,
@@ -380,7 +410,7 @@ class _ProfileViewState extends State<ProfileView> {
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-              color: const Color(0xFFFFD700).withValues(alpha: 0.2),
+              color: const Color(0xFFFFD700).withAlpha(51),
               blurRadius: 12,
               offset: const Offset(0, 4))
         ],
@@ -414,7 +444,7 @@ class _ProfileViewState extends State<ProfileView> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 16),
       decoration: BoxDecoration(
-        color: graySurface.withValues(alpha: 0.3),
+        color: graySurface.withAlpha(77),
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: const Color(0xFFFFD700), width: 0.5),
       ),
@@ -437,7 +467,7 @@ class _ProfileViewState extends State<ProfileView> {
       leading: Icon(icon, color: Colors.white70),
       title: Text(title, style: const TextStyle(color: Colors.white70)),
       trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 16),
-      tileColor: graySurface.withValues(alpha: 0.3),
+      tileColor: graySurface.withAlpha(77),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
     );
   }
