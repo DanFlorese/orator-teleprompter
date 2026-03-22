@@ -6,16 +6,20 @@ import 'package:orator_teleprompter/views/dashboard/dashboard_view.dart';
 import 'package:orator_teleprompter/views/dashboard/profile_view.dart';
 import 'package:orator_teleprompter/views/auth/reset_password_view.dart';
 import 'package:orator_teleprompter/views/auth/forgot_password_view.dart';
-// --- PURCHASE SERVICE IMPORT ---
 import 'package:orator_teleprompter/services/purchase_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart'; // <--- IMPORTANTE
 
-// 1. Global key to navigate without local context
+// Global key to navigate without local context
 final navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   // Ensure platform channels are ready
   WidgetsFlutterBinding.ensureInitialized();
+
+  // --- INITIALIZE GOOGLE ADS ---
+  // Se inicializa antes que el resto para ganar tiempo de carga
+  MobileAds.instance.initialize();
 
   // --- LOAD ENVIRONMENT VARIABLES (.env) ---
   try {
@@ -49,14 +53,12 @@ class _OratorAppState extends State<OratorApp> {
   void initState() {
     super.initState();
 
-    // 2. Auth state listener for password recovery
-    // Se coloca aquí para que el listener esté activo durante toda la vida de la app
+    // Auth state listener for password recovery
     Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       final AuthChangeEvent event = data.event;
 
       if (event == AuthChangeEvent.passwordRecovery) {
         debugPrint("Password recovery event detected!");
-        // Usamos pushNamedAndRemoveUntil para limpiar el stack y forzar la nueva contraseña
         navigatorKey.currentState?.pushNamedAndRemoveUntil(
           '/reset-password',
           (route) => false,
@@ -67,7 +69,6 @@ class _OratorAppState extends State<OratorApp> {
 
   @override
   Widget build(BuildContext context) {
-    // Verificamos si hay una sesión activa al arrancar
     final session = Supabase.instance.client.auth.currentSession;
 
     return MaterialApp(
@@ -75,7 +76,6 @@ class _OratorAppState extends State<OratorApp> {
       title: 'Orator Teleprompter',
       debugShowCheckedModeBanner: false,
       theme: oratorTheme,
-      // Home decide la pantalla inicial
       home: session != null ? const DashboardView() : const LoginView(),
       routes: {
         '/login': (context) => const LoginView(),
