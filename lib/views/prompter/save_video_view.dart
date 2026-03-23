@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:gal/gal.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:orator_teleprompter/core/theme.dart'; 
 import 'package:purchases_flutter/purchases_flutter.dart'; 
+import 'package:orator_teleprompter/main.dart'; 
 
 class SaveVideoView extends StatefulWidget {
   final String videoPath;
@@ -17,87 +17,34 @@ class SaveVideoView extends StatefulWidget {
 
 class _SaveVideoViewState extends State<SaveVideoView> {
   bool _isLoading = false;
-  RewardedAd? _rewardedAd;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadRewardedAd();
-  }
-
-  @override
-  void dispose() {
-    _rewardedAd?.dispose();
-    super.dispose();
-  }
-
-  /// Carga el anuncio recompensado con tu ID real de unidad
-  void _loadRewardedAd() {
-    // IMPORTANTE: Reemplaza 'TU_REWARDED_UNIT_ID' con el ID que generes en AdMob (ej. ca-app-pub-2835931777848065/XXXXXXXXXX)
-    RewardedAd.load(
-      adUnitId: 'ca-app-pub-2835931777848065/2794410919', 
-      request: const AdRequest(),
-      rewardedAdLoadCallback: RewardedAdLoadCallback(
-        onAdLoaded: (ad) {
-          setState(() => _rewardedAd = ad);
-        },
-        onAdFailedToLoad: (LoadAdError error) {
-          debugPrint('RewardedAd failed to load: $error');
-          _rewardedAd = null;
-        },
-      ),
-    );
-  }
-
-  /// Maneja el proceso de guardado verificando suscripción en RevenueCat
+  /// Maneja el proceso de guardado verificando suscripción y mostrando anuncios
   Future<void> _handleSaveProcess() async {
     setState(() => _isLoading = true);
 
     try {
-      // Verificamos si el usuario tiene el entitlement 'premium' activo
+      // 1. Verificamos suscripción en RevenueCat
       CustomerInfo customerInfo = await Purchases.getCustomerInfo();
       bool isPremium = customerInfo.entitlements.all['premium']?.isActive ?? false;
 
       if (isPremium) {
-        // Usuario Premium: Guardado directo sin interrupciones
+        // Usuario Premium: Guardado directo
         await _saveVideoToGallery();
       } else {
-        // Usuario Gratuito: Debe ver el anuncio para "pagar" el guardado
+        // Usuario Gratuito: Mediación AdMob + Meta
         setState(() => _isLoading = false);
-        _showAdAndSave();
+        
+        // Mostramos el Intersticial configurado con el nuevo ID (...5170397430)
+        // La instancia global 'adService' se encarga de llamar a la red que mejor pague
+        await adService.showAdIfAvailable();
+        
+        // Una vez cerrado o fallido el anuncio, procedemos al guardado
+        await _saveVideoToGallery();
       }
     } catch (e) {
-      debugPrint("Error checking premium status: $e");
-      setState(() => _isLoading = false);
-      // Por seguridad (fallo de red), permitimos el flujo de anuncio
-      _showAdAndSave();
-    }
-  }
-
-  /// Muestra el anuncio y al completar la recompensa, guarda el video
-  void _showAdAndSave() {
-    if (_rewardedAd != null) {
-      _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
-        onAdDismissedFullScreenContent: (ad) {
-          ad.dispose();
-          _loadRewardedAd(); 
-        },
-        onAdFailedToShowFullScreenContent: (ad, error) {
-          ad.dispose();
-          _loadRewardedAd();
-          _saveVideoToGallery(); // Si el anuncio falla, no bloqueamos al usuario
-        },
-      );
-
-      _rewardedAd!.show(
-        onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
-          _saveVideoToGallery();
-        },
-      );
-      _rewardedAd = null;
-    } else {
-      // Si el anuncio aún no carga, guardamos directamente para evitar mala experiencia
-      _saveVideoToGallery();
+      debugPrint("Error en proceso de guardado: $e");
+      // Fallback por seguridad: Guardar de todos modos
+      await _saveVideoToGallery();
     }
   }
 
@@ -134,6 +81,7 @@ class _SaveVideoViewState extends State<SaveVideoView> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       )
     );
+    // Limpia el stack y regresa al Dashboard
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
@@ -187,6 +135,7 @@ class _SaveVideoViewState extends State<SaveVideoView> {
       child: Scaffold(
         body: Stack(
           children: [
+            // Fondo con gradiente
             Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -197,6 +146,7 @@ class _SaveVideoViewState extends State<SaveVideoView> {
               ),
             ),
             
+            // Círculo decorativo
             Positioned(
               top: -50,
               right: -50,
@@ -274,6 +224,7 @@ class _SaveVideoViewState extends State<SaveVideoView> {
                         
                         const SizedBox(height: 40),
                         
+                        // BOTÓN DE GUARDADO DINÁMICO (Llama a la mediación)
                         Container(
                           width: 280,
                           height: 60,

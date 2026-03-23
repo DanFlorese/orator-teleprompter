@@ -29,6 +29,10 @@
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-2835931777848065~3629258702"/>
 
+        <meta-data
+            android:name="com.google.android.gms.ads.AD_MANAGER_APP"
+            android:value="true" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

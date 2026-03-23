@@ -7,21 +7,26 @@ import 'package:orator_teleprompter/views/dashboard/profile_view.dart';
 import 'package:orator_teleprompter/views/auth/reset_password_view.dart';
 import 'package:orator_teleprompter/views/auth/forgot_password_view.dart';
 import 'package:orator_teleprompter/services/purchase_service.dart';
+import 'package:orator_teleprompter/services/ad_service.dart'; // <--- IMPORTANTE
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart'; // <--- IMPORTANTE
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+
+// Instancia global para llamar a los anuncios desde cualquier vista
+final adService = AdService();
 
 // Global key to navigate without local context
 final navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
-  // Ensure platform channels are ready
+  // 1. Ensure platform channels are ready
   WidgetsFlutterBinding.ensureInitialized();
 
-  // --- INITIALIZE GOOGLE ADS ---
-  // Se inicializa antes que el resto para ganar tiempo de carga
-  MobileAds.instance.initialize();
+  // 2. Initialize Google Ads & Load first ad
+  // Lo hacemos al principio para que tenga tiempo de bajar el anuncio
+  await MobileAds.instance.initialize();
+  adService.loadAd();
 
-  // --- LOAD ENVIRONMENT VARIABLES (.env) ---
+  // 3. Load Environment Variables (.env)
   try {
     await dotenv.load(fileName: ".env");
     debugPrint("Environment variables loaded successfully.");
@@ -29,13 +34,13 @@ void main() async {
     debugPrint("Critical error loading .env file: $e");
   }
 
-  // --- SUPABASE INITIALIZATION ---
+  // 4. Supabase Initialization
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL'] ?? '',
     anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
   );
 
-  // --- REVENUECAT INITIALIZATION ---
+  // 5. RevenueCat Initialization
   await PurchaseService.init();
 
   runApp(const OratorApp());
