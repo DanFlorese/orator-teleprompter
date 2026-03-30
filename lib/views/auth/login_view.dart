@@ -5,6 +5,9 @@ import 'package:orator_teleprompter/core/theme.dart';
 import 'package:orator_teleprompter/views/auth/register_view.dart';
 import 'package:orator_teleprompter/views/dashboard/dashboard_view.dart';
 import 'package:orator_teleprompter/views/auth/forgot_password_view.dart';
+// Nuevos imports para el manejo de errores
+import 'package:orator_teleprompter/services/user_service.dart';
+import 'package:orator_teleprompter/widgets/error_message.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -16,6 +19,7 @@ class LoginView extends StatefulWidget {
 class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _userService = UserService(); // Instancia del servicio
   bool _obscurePassword = true;
   bool _isLoading = false;
 
@@ -46,7 +50,7 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
 
   Future<void> _handleLogin() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      _showMsg('Please fill in all fields');
+      ErrorMessage.show(context, 'Please fill in all fields');
       return;
     }
 
@@ -71,25 +75,15 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
           MaterialPageRoute(builder: (context) => const DashboardView()),
         );
       }
-    } on AuthException catch (e) {
-      _showMsg(e.message);
     } catch (e) {
-      _showMsg('Login failed. Please try again.');
+      // Usamos la lógica centralizada de UserService para mapear el error
+      final friendlyMessage = _userService.mapErrorMessage(e);
+      if (mounted) {
+        ErrorMessage.show(context, friendlyMessage);
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  void _showMsg(String text) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(text, style: const TextStyle(fontWeight: FontWeight.w600)), 
-        backgroundColor: redOrator,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      )
-    );
   }
 
   @override
@@ -105,13 +99,13 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
               fit: BoxFit.cover,
             ),
           ),
-          // --- CAPA OSCURA PARA LEGIBILIDAD (OPCIONAL) ---
+          // --- CAPA OSCURA PARA LEGIBILIDAD ---
           Positioned.fill(
             child: Container(
               color: Colors.black.withValues(alpha: 0.6),
             ),
           ),
-          // --- CONTENIDO ORIGINAL ---
+          // --- CONTENIDO ---
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 30),
@@ -186,7 +180,7 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                       hintText: 'Password',
                       hintStyle: const TextStyle(color: Colors.grey),
                       filled: true,
-                      fillColor: graySurface.withValues(alpha: 0.8), // Un poco de transparencia
+                      fillColor: graySurface.withValues(alpha: 0.8),
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(15),
                           borderSide: BorderSide.none),
@@ -268,7 +262,7 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
         hintText: hint,
         hintStyle: const TextStyle(color: Colors.grey),
         filled: true,
-        fillColor: graySurface.withValues(alpha: 0.8), // Un poco de transparencia
+        fillColor: graySurface.withValues(alpha: 0.8),
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
             borderSide: BorderSide.none),
