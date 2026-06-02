@@ -16,7 +16,7 @@ class _SmartAdBannerState extends State<SmartAdBanner> {
 
   // IDs REALES de AdMob para Banner
   final String _adUnitIdAndroid = 'ca-app-pub-2835931777848065/2794410919';
-  final String _adUnitIdiOS = 'ca-app-pub-2835931777848065/XXXXXXXXXX'; // REEMPLAZA CUANDO TENGAS EL ID DE BANNER IOS
+  final String _adUnitIdiOS = 'ca-app-pub-2835931777848065/7747580349'; // REEMPLAZA CUANDO TENGAS EL ID DE BANNER IOS
 
   @override
   void initState() {
